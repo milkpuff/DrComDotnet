@@ -1,4 +1,15 @@
-﻿using System;
+﻿/*
+DrComDotnet - JLU DrCom Clinet written in C#
+coding:   UTF-8
+csharp:   8
+dotnet:   Dotnet Core 3
+version:  0.0.2
+codename: Still a Flower Bud (仍是花蕾)
+
+Inspired by newclinet.py(zhjc1124) and jlu-drcom-protocol(YouthLin).
+*/
+
+using System;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -227,7 +238,28 @@ namespace DrComDotnet
     {
         public Settings settings;
         public Socket   socket;
+        
+        //packetBuild的辅助函数,用来计算协议中的ror
+        public byte[] packetBuildCalculateRor(byte[] md5a, byte[] password) 
+        {
+            byte[] ret = new byte[password.Length];
+            byte t;
+            for (int i = 0; i < password.Length; i++) 
+            {
+                t      = (byte) ( md5a[i] ^ password[i] );
+                ret[i] = (byte) ( (t << 3) & 0xFF + (t >> 5) );
+                //& 0xFF: C#不能直接对byte位运算,需要先拓宽为int,所以用& 0xFF来只保留后8位
+            }
+            return ret;
+        }
 
+        public byte[] packetBuildCalculateChecksum(byte[] packet)
+        {
+            // TODO
+            return new byte[6]{0x00,0x00,0x00,0x00,0x00,0x00};
+        } 
+
+        //构建请求包
         public byte[] packetBuild(int packetLength)
         {
             //起个别名，方便阅读。getBytes = Encoding.Default.GetBytes
@@ -243,8 +275,8 @@ namespace DrComDotnet
 
             //接下来了才是重点,伙计!
             //按照模板(https://github.com/drcoms/jlu-drcom-client/blob/master/jlu-drcom-java/jlu-drcom-protocol.md)构建packet.由于长度不固定,代码必须一点点写,所以非常难看
-            //这里使用了一个自己定义的类用来方便的连接字符串。如果有内置类当然就是白忙活了
-            //还有,由于有些参数必须在连接一部分后才能计算,所以分两次连接
+            //这里使用了一个自己定义的类用来方便的拼接字符串。如果有内置类当然就是白忙活了
+            //还有,由于有些参数必须在拼接一部分后才能计算,所以分三次拼接
             var packet = new Utils.BytesLinker(packetLength);
 
             //一个packet中有很多参数(以t开头进行区分),一一计算拼接
@@ -295,7 +327,7 @@ namespace DrComDotnet
             byte[] tIP3        = new byte[4] {0x00,0x00,0x00,0x00};
             byte[] tIP4        = new byte[4] {0x00,0x00,0x00,0x00};
  
-            //第一次连接
+            //第一次拼接
             packet.AddBytes( new byte[] {
                 tCode, tType, tEof, tUsrLen  });
             packet.AddBytes(tMd5a,  20);
@@ -327,32 +359,59 @@ namespace DrComDotnet
             byte[] tSecondaryDNS = {0x00, 0x00, 0x00, 0x00};
             byte[] tDHCP         = {0x00, 0x00, 0x00, 0x00};
 
-            //未知的固定部分
-            //前面是操作系统版本之类的,以后记得改写
-            byte[] tUnknownFixed = new byte[] {
+            //操作系统版本之类的,先固定着,以后记得改写
+            byte[] tOSInfo = new byte[] {
                                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x94, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00,
                 0x02, 0x00, 0x00, 0x00, 0xf0, 0x23, 0x00, 0x00, 0x02, 0x00,
-                0x00, 0x00, 0x44, 0x72, 0x43, 0x4f, 0x4d, 0x00, 0xcf, 0x07,
-                0x6a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                0x00, 0x00 };
+            
+            byte[] tDrComCheck = new byte[] { 
+                0x44, 0x72, 0x43, 0x4f, 0x4d, 0x00, 0xcf, 0x07, 0x6a
             };
+
+            //固定长度的零字节,tFixed对应协议分析中的 zero[24] 和 6a 00 00
+            byte[] tZero55 = new byte[55];
+            byte[] tFixed  = new byte[27] {
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x6a, 0x00, 0x00
+            };
+
             //str有很多版本,以后抓包看看
             byte[] tUnknownStr  = getBytes("1c210c99585fd22ad03d35c956911aeec1eb449b");
 
-            //第二次连接
+            //计算ror
+            int pwdLen = (passWord.Length>16)? 16 : passWord.Length;
+            byte[] tRor = packetBuildCalculateRor(tMd5a,passWord);
+
+            //第二次拼接
             packet.AddBytes(tMd5c);
             packet.AddBytes(new byte[] { tIPDog, 0x00, 0x00, 0x00, 0x00 }, 110);
             packet.AddBytes(tHostName, 142);
             packet.AddBytes(tPrimaryDNS);
             packet.AddBytes(tDHCP);
             packet.AddBytes(tSecondaryDNS, 154);
-            packet.AddBytes(tUnknownFixed, 246);
+            packet.AddBytes(tOSInfo);
+            packet.AddBytes(tDrComCheck);
+            packet.AddBytes(tZero55, 246);
             packet.AddBytes(tUnknownStr,   286);
+            packet.AddBytes(tFixed,   313);
+
+            //现在是2020年八月25日凌晨0点,由于宿舍停电,未经调试,紧急保存现场
+            //这里有错误,停电了,改天再说
+            packet.AddBytes(tRor, packetLength - 8);
+
+            //计算checksum
+            byte[] checksum = packetBuildCalculateChecksum(packet.bytes);
+            byte[] tCheckSum = new byte[] {
+                0x02, 0x0c, checksum[0], checksum[3], 0x00, 0x00, macAddress[0], macAddress[7]
+            };
+
+            //第三次拼接
+            packet.AddBytes(tCheckSum);
+
+            //还要补0,停电了,改天再说
 
             return packet.bytes;
 
@@ -361,8 +420,9 @@ namespace DrComDotnet
         {
             //计算packet长度
             //t 表示意义不明的临时变量.协议描述中为 x / 4 * 4,等于x - x % 4
-            int t0 = (settings.passWord.Length>16)? 16 : settings.passWord.Length - 1;
-            int packetLength = 334 + t0 - t0 % 4;
+            int t0 = (settings.passWord.Length>16)? 16 : settings.passWord.Length;
+            int t1 = t0 - 1;
+            int packetLength = 334 + t1 - t1 % 4;
 
             //构建packet
             byte[] packet = packetBuild(packetLength);
