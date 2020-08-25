@@ -1,7 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
 
+
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <Authors>Leviolet</Authors>
     <OutputType>Exe</OutputType>
+    <Version>0.0.2-dev</Version>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
