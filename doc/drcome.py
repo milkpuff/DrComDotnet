@@ -268,6 +268,7 @@ def mkpkt(salt, usr, pwd, mac):
     data += b'\x00'*4  # your ipaddress 2
     data += b'\x00'*4  # your ipaddress 3
     data += b'\x00'*4  # your ipaddress 4
+    print(len(data),"md5c src = ", data)
     data += md5sum(data + b'\x14\x00\x07\x0b')[:8]  # md53
     data += IPDOG
     data += b'\x00'*4  # delimeter

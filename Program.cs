@@ -1,4 +1,4 @@
-�?/*
+﻿/*
 DrComDotnet - JLU DrCom Clinet written in C#
 coding:   UTF-8
 csharp:   8
@@ -22,7 +22,7 @@ namespace DrComDotnet
 {
     using uint8 = System.Byte;
 
-    //小工�?
+    //小工具
     static class Utils
     {
         static public void printBytesHex(byte[] bytes,string name = "Hex")
@@ -42,7 +42,7 @@ namespace DrComDotnet
             public  int    bytesLength {get; private set; }
             public  int    offset      {get; private set; }      //偏移量，第一个未填充的字符的下标
 
-            //初始�?
+            //初始化
             public BytesLinker(int bytesLength)
             {
                 this.bytes       = new byte[bytesLength];
@@ -50,7 +50,7 @@ namespace DrComDotnet
                 offset           = 0;
             }
 
-            //定义溢出异常,没太有必�?,只是用来学习
+            //定义溢出异常,没太有必要,只是用来学习
             public class BytesLinkOverflowException: ApplicationException
             {   
                 public BytesLinkOverflowException(string message): base(message)
@@ -66,7 +66,7 @@ namespace DrComDotnet
                     throw new BytesLinkOverflowException($"offset={offset},bytesLength={bytesLength},src.Length={src.Length}");
                 }
 
-                //连接并偏�?
+                //连接并偏移
                 src.CopyTo(bytes, offset);
                 offset += src.Length;
             }
@@ -82,7 +82,7 @@ namespace DrComDotnet
                 }
             }
 
-            //添加�?个byte
+            //添加一个byte
             public void AddByte(byte src)
             {
                 //判断是否溢出
@@ -90,12 +90,12 @@ namespace DrComDotnet
                 {
                     throw new BytesLinkOverflowException($"offset={offset},bytesLength={bytesLength},src.Length={1}");
                 }
-                //连接并偏�?
+                //连接并偏移
                 bytes[offset] = src;
                 offset++;
             }
             
-            //重载切片，用于练�?
+            //重载切片，用于练习
             public byte[] this[Range r]
             {
                 get { return bytes[r]; }
@@ -123,7 +123,7 @@ namespace DrComDotnet
 
         public void loadFromJsonFile(string filePath)
         {
-            //先画个大�?
+            //先画个大饼
         }
 
         // TODO: 
@@ -149,7 +149,7 @@ namespace DrComDotnet
                 Debug.WriteLine(socketException);
             }
 
-            //设置默认�?
+            //设置默认值
             primaryDNS = IPAddress.Parse("10.10.10.10");
             serverIPEndPoint = new IPEndPoint(serverIP, 61440);
         }
@@ -168,10 +168,10 @@ namespace DrComDotnet
         // 用于packetBuild
         Random randomBuilder = new Random();
 
-        // 构建握手�?要的�?
+        // 构建握手需要的包
         private byte[] packetBuild(uint8 challenge_times)
         {
-            // 四部分组�? packet(20B) = begin(1B) + times(1B) + rand(2B) + end(17B)
+            // 四部分组成 packet(20B) = begin(1B) + times(1B) + rand(2B) + end(17B)
             byte[] begin = new byte[] {0x01};
             byte[] rand  = new byte[2];
             randomBuilder.NextBytes(rand);
@@ -185,7 +185,7 @@ namespace DrComDotnet
             //连接
             byte[] packet = begin.Concat(rand).Concat(times).Concat(end).ToArray();
 
-            //确保长度�?20
+            //确保长度为20
             Debug.Assert(packet.Length == 20, $"Incorrect Packet Length: {packet.Length}");
 
             return packet;
@@ -194,11 +194,11 @@ namespace DrComDotnet
         // 握手,返回salt和客户端ip
         public Tuple<byte[], IPAddress> handShake()
         {
-            //构建握手�?
+            //构建握手包
             byte[] packet = packetBuild(challenge_times);
             Utils.printBytesHex(packet,"packet");
 
-            //发�??
+            //发送
             socket.SendTo(
                 packet,
                 0,
@@ -207,7 +207,7 @@ namespace DrComDotnet
                 settings.serverIPEndPoint
             );
 
-            //接收服务器返回消�?
+            //接收服务器返回消息
             byte[] recv = new byte[76];
             socket.Receive(recv);
             Utils.printBytesHex(recv,"handshake recv");
@@ -221,28 +221,28 @@ namespace DrComDotnet
             Utils.printBytesHex(salt,"salt");
             Utils.printBytesHex(clinetIPBytes,"clinetIPBytes");
 
-            //校验随机�?
+            //校验随机位
             Debug.Assert(recv[2] == packet[2] && recv[3] == packet[3]);
 
             return new Tuple<byte[], IPAddress>(salt,clinetIP);
         }
 
-        //初始�?
+        //初始化
         public Handshaker(Socket socket, Settings settings)
         {
-            //赋�??
+            //赋值
             this.socket   = socket;
             this.settings = settings;
         }
     }
 
-    //登录�?
+    //登录器
     class Logger
     {
         public Settings settings;
         public Socket   socket;
         
-        //packetBuild的辅助函�?,用来计算协议中的ror
+        //packetBuild的辅助函数,用来计算协议中的ror
         public byte[] packetBuildCalculateRor(byte[] md5a, byte[] password) 
         {
             byte[] ret = new byte[password.Length];
@@ -250,8 +250,8 @@ namespace DrComDotnet
             for (int i = 0; i < password.Length; i++) 
             {
                 t      = (byte) ( md5a[i] ^ password[i] );
-                ret[i] = (byte) ( (t << 3) & 0xFF + (t >> 5) );
-                //& 0xFF: C#不能直接对byte位运�?,�?要先拓宽为int,�?以用& 0xFF来只保留�?8�?
+                ret[i] = (byte) ( (t << 3 & 0xFF) + (t >> 5) ); //没搞清优先级,自罚抄运算符优先级表
+                //& 0xFF: C#不能直接对byte位运算,需要先拓宽为int,所以用& 0xFF来只保留后8位
             }
             return ret;
         }
@@ -264,6 +264,7 @@ namespace DrComDotnet
                 .Concat(settings.macAddress)
                 .ToArray();
             // 1234 = 0x_00_00_04_d2
+            Utils.printBytesHex(data,"Checksum src");
             byte[] sum = new byte[]{0x00, 0x00, 0x04, 0xd2};
             int len = data.Length;
             int i = 0;
@@ -303,10 +304,12 @@ namespace DrComDotnet
             return ret;
         } 
 
-        //构建请求�?
+        //构建请求包
         public byte[] packetBuild(int packetLength)
         {
-            //起个别名，方便阅读�?�getBytes = Encoding.Default.GetBytes
+
+
+            //起个别名，方便阅读。getBytes = Encoding.Default.GetBytes
             Func<string,byte[]> getBytes = Encoding.Default.GetBytes;
 
             // 获取其他参数 username, password, mac,并转换成byte[]
@@ -316,15 +319,21 @@ namespace DrComDotnet
             byte[] macAddress = settings.macAddress;
             byte[] hostName   = getBytes(settings.hostName);
             byte[] primaryDNS = settings.primaryDNS.GetAddressBytes();
+            byte[] ip1        = settings.handShakeIP.GetAddressBytes();
+
+            //debug
+            //salt = new byte[] { 0xfc, 0xac, 0xb7, 0x02 } ;
+            //salt[2..3]一般以0xb7, 0x02
+            //ip1  = new byte[] { 0x64, 0x64, 0x64, 0x64 };
 
             //接下来了才是重点,伙计!
-            //按照模板(https://github.com/drcoms/jlu-drcom-client/blob/master/jlu-drcom-java/jlu-drcom-protocol.md)构建packet.由于长度不固�?,代码必须�?点点�?,�?以非常难�?
-            //这里使用了一个自己定义的类用来方便的拼接字符串�?�如果有内置类当然就是白忙活�?
-            //还有,由于有些参数必须在拼接一部分后才能计�?,�?以分三次拼接
-            var packet = new Utils.BytesLinker(packetLength + 32); //由于�?0的奇怪算�?
+            //按照模板(https://github.com/drcoms/jlu-drcom-client/blob/master/jlu-drcom-java/jlu-drcom-protocol.md)构建packet.由于长度不固定,代码必须一点点写,所以非常难看
+            //这里使用了一个自己定义的类用来方便的拼接字符串。如果有内置类当然就是白忙活了
+            //还有,由于有些参数必须在拼接一部分后才能计算,所以分三次拼接
+            var packet = new Utils.BytesLinker(packetLength + 28); //由于补0的奇怪算法
 
-            //�?个packet中有很多参数(以t�?头进行区�?),�?�?计算拼接
-            //�?4个固定的packet参数�?
+            //一个packet中有很多参数(以t开头进行区分),一一计算拼接
+            //前4个固定的packet参数。
             const byte tCode= 0x03;
             const byte tType= 0x01;
             const byte tEof = 0x00;
@@ -332,7 +341,7 @@ namespace DrComDotnet
 
             //其他几个固定参数
             const byte tControlCheck = 0x20;
-            const byte tAdapterNum   = 0x05;
+            const byte tAdapterNum   = 0x03; //newclinet: 0x03 protocol: 0x05
             const byte tIPDog        = 0x01;
 
             //计算md5a
@@ -355,23 +364,23 @@ namespace DrComDotnet
             );
 
             // 计算xor = md5a[0..6] ^ mac
-            // 由于移位运算符仅针对 int、uint、long �? ulong 类型定义。如果左侧操作数是其他整数类型，则其值将转换�? int 类型
+            // 由于移位运算符仅针对 int、uint、long 和 ulong 类型定义。如果左侧操作数是其他整数类型，则其值将转换为 int 类型
             // WTF.
             byte[] tXor = tMd5a[0..6].Zip(macAddress, (a,b) => (byte) (a ^ b)).ToArray();
             Utils.printBytesHex(tXor,"tXor");
 
-            // 计算uname 用户名左对齐末尾�? 0 �? 36 长度
-            byte[] tUname = new byte[36];  //TODO 手动�?0
+            // 计算uname 用户名左对齐末尾补 0 凑 36 长度
+            byte[] tUname = new byte[36];  //TODO 手动填0
             userName.CopyTo(tUname,0);
 
             //生成IP部分
             const byte tIPNum  = 0x01; //对应numOfIP
-            byte[] tIP1        = settings.handShakeIP.GetAddressBytes();
+            byte[] tIP1        = ip1;
             byte[] tIP2        = new byte[4] {0x00,0x00,0x00,0x00};
             byte[] tIP3        = new byte[4] {0x00,0x00,0x00,0x00};
             byte[] tIP4        = new byte[4] {0x00,0x00,0x00,0x00};
  
-            //第一次拼�?
+            //第一次拼接
             packet.AddBytes( new byte[] {
                 tCode, tType, tEof, tUsrLen  });
             packet.AddBytes(tMd5a,  20);
@@ -389,13 +398,17 @@ namespace DrComDotnet
             //继续计算
             //计算md5c
             byte[] tMd5c = md5Builder.ComputeHash(
-                packet[0..98]
-                .Concat(new byte[] {0x14,0x07,0x00,0x0b})
+                packet[0..97]
+                .Concat(new byte[] {0x14, 0x00, 0x07, 0x0b}) //抄错数了,找了半天 T_T
                 .ToArray()
-            )[0..8]; //TODO: 使用引用的方式减小内存占�? 类似�? ref packet[0..98]
+            )[0..8]; //TODO: 使用引用的方式减小内存占用 类似于 ref packet[0..98]
+            Utils.printBytesHex(packet[0..98]
+                .Concat(new byte[] {0x14, 0x00, 0x07, 0x0b}) //抄错数了,找了半天 T_T
+                .ToArray()
+            ,"MD5C SRC");
 
             //对齐hostname
-            byte[] tHostName = new byte[32]; //TODO: 手动�?0
+            byte[] tHostName = new byte[32]; //TODO: 手动补0
             hostName.CopyTo(tHostName, 0);
 
             //构建DHCP,两个DNS
@@ -403,7 +416,7 @@ namespace DrComDotnet
             byte[] tSecondaryDNS = {0x00, 0x00, 0x00, 0x00};
             byte[] tDHCP         = {0x00, 0x00, 0x00, 0x00};
 
-            //操作系统版本之类�?,先固定着,以后记得改写
+            //操作系统版本之类的,先固定着,以后记得改写
             byte[] tOSInfo = new byte[] {
                                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x94, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00,
@@ -411,26 +424,44 @@ namespace DrComDotnet
                 0x00, 0x00 };
             
             byte[] tDrComCheck = new byte[] { 
-                0x44, 0x72, 0x43, 0x4f, 0x4d, 0x00, 0xcf, 0x07, 0x6a
+                0x44, 0x72, 0x43, 0x4f, 0x4d, 0x00, 0xcf, 0x07, 0x68
             };
+            // protocol版本
+            //byte[] tDrComCheck = new byte[] { 
+            //    0x44, 0x72, 0x43, 0x4f, 0x4d, 0x00, 0xcf, 0x07, 0x6a
+            //};
 
-            //固定长度的零字节,tFixed对应协议分析中的 zero[24] �? 6a 00 00
+            //固定长度的零字节,tFixed对应协议分析中的 zero[24] 和 6a 00 00
             byte[] tZero55 = new byte[55];
             byte[] tFixed  = new byte[27] {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x6a, 0x00, 0x00
+                0x00, 0x00, 0x00, 0x00, 0x68, 0x00, 0x00
             };
+            // protocol 版
+            //byte[] tFixed  = new byte[27] {
+            //    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            //    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            //    0x00, 0x00, 0x00, 0x00, 0x6a, 0x00, 0x00
+            //};
 
-            //str有很多版�?,以后抓包看看
-            byte[] tUnknownStr  = getBytes("1c210c99585fd22ad03d35c956911aeec1eb449b");
+            //str有很多版本,以后抓包看看
+            // protocol 版
+            //byte[] tUnknownStr  = getBytes("1c210c99585fd22ad03d35c956911aeec1eb449b");
+            // newclinet 版
+            byte[] tUnknownStr = new byte[] {0x33, 0x64, 0x63, 0x37, 0x39, 0x66, 0x35, 0x32, 0x31, 0x32, 0x65, 0x38, 0x31, 0x37, 0x30, 0x61, 0x63, 0x66, 0x61, 0x39, 0x65, 0x63, 0x39, 0x35, 0x66, 0x31, 0x64, 0x37, 0x34, 0x39, 0x31, 0x36, 0x35, 0x34, 0x32, 0x62, 0x65, 0x37, 0x62, 0x31} ;
+            
 
-            //计算ror �? passlen
+            //计算ror 和 passlen
             int passLen   = (passWord.Length>16)? 16 : passWord.Length;
             byte tPassLen = (uint8) passLen;
             byte[] tRor = packetBuildCalculateRor(tMd5a,passWord);
+            Utils.printBytesHex(tRor, "tRor");
 
-            //第二次拼�?
+            //ror后的两字节 protocol 没有写明
+            byte[] tAfterRor = new byte[] {0x02,0x0c};
+
+            //第二次拼接
             packet.AddBytes(tMd5c);
             packet.AddBytes(new byte[] { tIPDog, 0x00, 0x00, 0x00, 0x00 }, 110);
             packet.AddBytes(tHostName,     142);
@@ -444,10 +475,12 @@ namespace DrComDotnet
             packet.AddBytes(tFixed,        313);
             packet.AddByte (tPassLen);
             packet.AddBytes(tRor,          314 + passLen);
-            //现在�?2020年八�?25日凌�?0�?,由于宿舍停电,未经调试,紧�?�保存现�?
+            packet.AddBytes(tAfterRor,     316 + passLen);
+
+            //现在是2020年八月25日凌晨0点,由于宿舍停电,未经调试,紧急保存现场
             
             //计算checksum
-            byte[] tCheckSum  = packetBuildCalculateChecksum( packet.bytes[0..(315+passLen)] )[0..4];
+            byte[] tCheckSum  = packetBuildCalculateChecksum( packet.bytes[0..(316+passLen)] )[0..4];
             Utils.printBytesHex(tCheckSum);
             byte[] tBeforeCheckSum = new byte[] {
                 0x02, 0x0c, 
@@ -460,11 +493,11 @@ namespace DrComDotnet
             //计算tMac
             ref byte[] tMac = ref macAddress;
 
-            // tZeroCount Protocol�?
+            // tZeroCount Protocol版
             // var zeroCount = (4 - passLen % 4) % 4;
             // byte[] tZeroCount = new byte[zeroCount];
 
-            // tZeroCount newclinet.py�?
+            // tZeroCount newclinet.py版
             var zeroCount = passLen / 4 == 4? 0 : passLen / 4; // Weird...
             byte[] tZeroCount = new byte[zeroCount];
 
@@ -473,15 +506,18 @@ namespace DrComDotnet
             Random random = new Random();
             random.NextBytes(tRand);
 
-            //第三次拼�?
+            //debug
+            //tRand = new byte[] { 0x60, 0xa2 };
+
+            //第三次拼接
             packet.AddBytes(tBeforeCheckSum);
             packet.AddBytes(tCheckSum);
             packet.AddBytes(tAfterCheckSum);
-            packet.AddBytes(tMac,          passLen + 328);
+            packet.AddBytes(tMac,          passLen + 330);
             packet.AddBytes(tZeroCount);
             packet.AddBytes(tRand);
 
-            //�?验并返回
+            //检验并返回
             //Debug.Assert(packet.offset == packet.bytesLength);
 
             return packet.bytes;
@@ -489,7 +525,7 @@ namespace DrComDotnet
         public void login()
         {
             //计算packet长度
-            //t 表示意义不明的临时变�?.协议描述中为 x / 4 * 4,等于x - x % 4
+            //t 表示意义不明的临时变量.协议描述中为 x / 4 * 4,等于x - x % 4
             int t0 = (settings.passWord.Length > 16)? 16 : settings.passWord.Length;
             int t1 = t0 - 1;
             int packetLength = 334 + t1 - t1 % 4;
@@ -499,11 +535,11 @@ namespace DrComDotnet
             Utils.printBytesHex(packet,"Packet");
 
             //进行通信
-            //发�??
+            //发送
             socket.SendTo(
                 packet,
                 0,
-                packetLength + 32,
+                packetLength + 28,
                 SocketFlags.None,
                 settings.serverIPEndPoint
             );
@@ -530,7 +566,7 @@ namespace DrComDotnet
 
         public Logger(Socket socketArg, Settings settingsArg)
         {
-            //赋�??
+            //赋值
             socket   = socketArg;
             settings = settingsArg;
         }
@@ -550,7 +586,7 @@ namespace DrComDotnet
             //流程 握手->登录->KeepAlive
             Console.WriteLine($"{args[0]},{args[1]}");
 
-            //初始化设�?
+            //初始化设置
             Settings settings   = new Settings();
             settings.userName   = args[0];
             settings.passWord   = args[1];
@@ -570,6 +606,8 @@ namespace DrComDotnet
             var (salt,handShakeClinetIP) = handshaker.handShake();
             settings.handShakeIP         = handShakeClinetIP;
             settings.salt                = salt;
+            //debug : settings.handShakeIP         = bindIP;
+            //settings.salt = new byte[] {};
 
             //登录
             Logger logger = new Logger(socket,settings);
