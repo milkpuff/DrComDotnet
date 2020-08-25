@@ -3,7 +3,7 @@ DrComDotnet - JLU DrCom Clinet written in C#
 coding:   UTF-8
 csharp:   8
 dotnet:   Dotnet Core 3
-version:  0.0.2
+version:  0.0.3
 codename: Still a Flower Bud (仍是花蕾)
 
 Inspired by newclinet.py(zhjc1124) and jlu-drcom-protocol(YouthLin).
@@ -15,6 +15,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Diagnostics;
 using System.Text;
+using System.Threading;
 using System.Security.Cryptography;
 using System.Numerics;
 
@@ -241,6 +242,7 @@ namespace DrComDotnet
     {
         public Settings settings;
         public Socket   socket;
+        public byte[]   md5a;   //用于后续KeepAlive
         
         //packetBuild的辅助函数,用来计算协议中的ror
         public byte[] packetBuildCalculateRor(byte[] md5a, byte[] password) 
@@ -307,8 +309,6 @@ namespace DrComDotnet
         //构建请求包
         public byte[] packetBuild(int packetLength)
         {
-
-
             //起个别名，方便阅读。getBytes = Encoding.Default.GetBytes
             Func<string,byte[]> getBytes = Encoding.Default.GetBytes;
 
@@ -320,11 +320,6 @@ namespace DrComDotnet
             byte[] hostName   = getBytes(settings.hostName);
             byte[] primaryDNS = settings.primaryDNS.GetAddressBytes();
             byte[] ip1        = settings.handShakeIP.GetAddressBytes();
-
-            //debug
-            //salt = new byte[] { 0xfc, 0xac, 0xb7, 0x02 } ;
-            //salt[2..3]一般以0xb7, 0x02
-            //ip1  = new byte[] { 0x64, 0x64, 0x64, 0x64 };
 
             //接下来了才是重点,伙计!
             //按照模板(https://github.com/drcoms/jlu-drcom-client/blob/master/jlu-drcom-java/jlu-drcom-protocol.md)构建packet.由于长度不固定,代码必须一点点写,所以非常难看
@@ -352,6 +347,7 @@ namespace DrComDotnet
                     .Concat(passWord)
                     .ToArray()
             );
+            this.md5a = tMd5a;
             Utils.printBytesHex(tMd5a,"tMd5a");
             
             //计算md5b
@@ -638,6 +634,41 @@ namespace DrComDotnet
 
         }
 
+        // 无限循环
+        public void KeepAlive()
+        {
+            int i;
+            while(true)
+            {
+                for(i=0;i<10;i++)
+                {
+                    Thread.Sleep(2000);
+                    keep38(md5a,tail1);
+                    if(i==0)
+                        keep40Extra();
+                    keep40A();
+                    keep40B();
+                }
+            }
+            /*
+            保持在线
+            (第一轮)
+                keep38 -> keep40_extra -> keep40_1 -> keep40_2
+                keep38 -> keep40_1 -> keep40_2
+                keep38 -> keep40_1 -> keep40_2
+                keep38 -> keep40_1 -> keep40_2
+                keep38 -> keep40_1 -> keep40_2
+                keep38 -> keep40_1 -> keep40_2
+                keep38 -> keep40_1 -> keep40_2
+                keep38 -> keep40_1 -> keep40_2
+                keep38 -> keep40_1 -> keep40_2
+                keep38 -> keep40_1 -> keep40_2
+            (第二轮 每十个 keep38 需要再次发送 keep40_extra)
+                keep38 -> keep40_extra -> keep40_1 -> keep40_2
+                ...
+            */
+        }
+
         public KeepAliver(Socket socket, Settings settings, byte[] md5a, byte[] tail1)
         {
             random = new Random();
@@ -674,13 +705,14 @@ namespace DrComDotnet
             var (salt,handShakeClinetIP) = handshaker.handShake();
             settings.handShakeIP         = handShakeClinetIP;
             settings.salt                = salt;
-            //debug : settings.handShakeIP         = bindIP;
-            //settings.salt = new byte[] {};
 
             //登录
             Logger logger = new Logger(socket,settings);
             byte[] tail1  = logger.login();
 
+            //保持在线
+            KeepAliver keepAliver = new KeepAliver(socket, settings, logger.md5a, tail1);
+            keepAliver.KeepAlive();
 
             //清理
             socket.Close();
