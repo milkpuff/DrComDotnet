@@ -522,7 +522,7 @@ namespace DrComDotnet
 
             return packet.bytes;
         }
-        public void login()
+        public byte[] login()
         {
             //计算packet长度
             //t 表示意义不明的临时变量.协议描述中为 x / 4 * 4,等于x - x % 4
@@ -561,7 +561,16 @@ namespace DrComDotnet
                 //TODO: 判断具体错误
                 throw new Exception();
             }
-
+            else
+            {
+                Console.WriteLine("登录失败!未知错误");
+                Utils.printBytesHex(status, "错误信息");
+                //TODO: 判断具体错误
+                throw new Exception();
+            }
+            //获取tail1,用于KeepAliver
+            byte[] tail1 = recv[23..29];
+            return tail1;
         }
 
         public Logger(Socket socketArg, Settings settingsArg)
@@ -575,7 +584,66 @@ namespace DrComDotnet
     //KeepAliver
     class KeepAliver
     {
+        public  Socket   socket;
+        private Random   random;
+        private Settings settings;
+        private byte     keep40Count = 0;
+        public  byte[]   md5a;
+        public  byte[]   tail1;
+        public  byte[]   tail2;
 
+        public byte[] keep38(byte[] md5a, byte[] tail1)
+        {
+            //构建包
+            //格式0xff md5a:16位 0x00 0x00 0x00 tail1:16位 rand1 rand2
+            Utils.BytesLinker packet = new Utils.BytesLinker(38);            
+            packet.AddByte (0x00);
+            packet.AddBytes(md5a);
+            packet.AddBytes(new byte[] {0x00, 0x00, 0x00});
+            packet.AddBytes(tail1);
+            byte[] tRandom = new byte[2] {0x00,0x00};
+            random.NextBytes(tRandom);
+            packet.AddBytes(tRandom);
+
+            //发送
+            socket.SendTo(
+                packet.bytes,
+                0,
+                38,
+                SocketFlags.None,
+                settings.serverIPEndPoint
+            );
+
+            //接收
+            byte[] recv = new byte[32];
+            socket.Receive(recv);
+
+            //获得 keepAliveVer,用于keep40
+            byte[] keepAliveVer = recv[28..29];
+            return keepAliveVer;
+        }
+
+        void keep40A()
+        {
+
+        }
+
+        void keep40B()
+        {
+
+        }
+
+        void keep40Extra()
+        {
+
+        }
+
+        public KeepAliver(Socket socket, Settings settings, byte[] md5a, byte[] tail1)
+        {
+            random = new Random();
+            this.settings = settings;
+            this.socket   = socket;
+        }
     }
 
     class Program
@@ -611,7 +679,7 @@ namespace DrComDotnet
 
             //登录
             Logger logger = new Logger(socket,settings);
-            logger.login();
+            byte[] tail1  = logger.login();
 
 
             //清理
