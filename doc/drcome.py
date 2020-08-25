@@ -16,11 +16,11 @@ import random
 # CONFIG
 # 等号对齐，强迫症福音
 server             =  '10.100.61.3'
-username           = b'XXXXXXX'          # 用户名
-password           = b'XXXXXXX'          # 密码
-host_ip            =  'XXX.XXX.XXX.XXX'  # ip地址
+username           = b'XXXXX'          # 用户名
+password           = b'XXXXX'          # 密码
+host_ip            =  '100.100.100.100'  # ip地址
 mac                = 0x888888888888      # mac地址
-host_name          = b'YOURPCNAME'       # 计算机名
+host_name          = b'LENNOVE'       # 计算机名
 host_os            = b'Windows 10'       # 操作系统
 CONTROLCHECKSTATUS = b'\x20'
 ADAPTERNUM         = b'\x03'
@@ -297,6 +297,7 @@ def mkpkt(salt, usr, pwd, mac):
     data += b'\x60\xa2'  # unknown, filled numbers randomly =w=
     data += b'\x00' * 28
     log('[mkpkt]', data.hex())
+    exit(0)
     return data
 
 

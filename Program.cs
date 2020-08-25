@@ -16,6 +16,7 @@ using System.Net.Sockets;
 using System.Diagnostics;
 using System.Text;
 using System.Security.Cryptography;
+using System.Numerics;
 
 namespace DrComDotnet
 {
@@ -114,6 +115,7 @@ namespace DrComDotnet
         public IPAddress userDNS     { get; set; }  //可能没用
         public IPAddress primaryDNS  { get; set; }
         public IPAddress handShakeIP { get; set; }  //handShake(challenge)返回的IP
+        public IPEndPoint serverIPEndPoint { get; set; }
         
         public string   serverHost      = "auth.jlu.edu.cn";
         public string   defaultServerIp = "10.100.61.3";
@@ -149,12 +151,13 @@ namespace DrComDotnet
 
             //设置默认值
             primaryDNS = IPAddress.Parse("10.10.10.10");
+            serverIPEndPoint = new IPEndPoint(serverIP, 61440);
         }
     }
 
     // 握手,即协议分析中的Challenge
     // args socket,setting
-    // usage: new-> handShake
+    // usage: new -> handShake
     class Handshaker
     {
 
@@ -201,7 +204,7 @@ namespace DrComDotnet
                 0,
                 20,
                 SocketFlags.None,
-                new IPEndPoint(settings.serverIP,61440)
+                settings.serverIPEndPoint
             );
 
             //接收服务器返回消息
@@ -253,10 +256,51 @@ namespace DrComDotnet
             return ret;
         }
 
-        public byte[] packetBuildCalculateChecksum(byte[] packet)
+        public byte[] packetBuildCalculateChecksum(byte[] packetPiece)
         {
             // TODO
-            return new byte[6]{0x00,0x00,0x00,0x00,0x00,0x00};
+            byte[] data = packetPiece
+                .Concat(new byte[]{ 0x01, 0x26, 0x07, 0x11, 0x00, 0x00 })
+                .Concat(settings.macAddress)
+                .ToArray();
+            // 1234 = 0x_00_00_04_d2
+            byte[] sum = new byte[]{0x00, 0x00, 0x04, 0xd2};
+            int len = data.Length;
+            int i = 0;
+            //0123_4567_8901_23
+            for (; i + 3 < len; i = i + 4) {
+                //abcd ^ 3210
+                //abcd ^ 7654
+                //abcd ^ 1098
+                sum[0] ^= data[i + 3];
+                sum[1] ^= data[i + 2];
+                sum[2] ^= data[i + 1];
+                sum[3] ^= data[i];
+            }
+            if (i < len) {
+                //剩下_23
+                //i=12,len=14
+                byte[] tmp = new byte[4];
+                for (int j = 3; j >= 0 && i < len; j--) {
+                    //j=3 tmp = 0 0 0 2  i=12  13
+                    //j=2 tmp = 0 0 3 2  i=13  14
+                    tmp[j] = data[i++];
+                }
+                for (int j = 0; j < 4; j++) {
+                    sum[j] ^= tmp[j];
+                }
+            }
+            BigInteger bigInteger =  new BigInteger(sum);
+            bigInteger   = bigInteger * (new BigInteger(1968));
+            bigInteger   = bigInteger & (new BigInteger(0xff_ff_ff_ffL));
+            byte[] bytes = bigInteger.ToByteArray();
+            len          = bytes.Length;
+            i = 0;
+            byte[] ret   = new byte[4];
+            for (int j   = len - 1; j >= 0 && i < 4; j--) {
+                ret[i++] = bytes[j];
+            }
+            return ret;
         } 
 
         //构建请求包
@@ -277,7 +321,7 @@ namespace DrComDotnet
             //按照模板(https://github.com/drcoms/jlu-drcom-client/blob/master/jlu-drcom-java/jlu-drcom-protocol.md)构建packet.由于长度不固定,代码必须一点点写,所以非常难看
             //这里使用了一个自己定义的类用来方便的拼接字符串。如果有内置类当然就是白忙活了
             //还有,由于有些参数必须在拼接一部分后才能计算,所以分三次拼接
-            var packet = new Utils.BytesLinker(packetLength);
+            var packet = new Utils.BytesLinker(packetLength + 32); //由于补0的奇怪算法
 
             //一个packet中有很多参数(以t开头进行区分),一一计算拼接
             //前4个固定的packet参数。
@@ -381,54 +425,107 @@ namespace DrComDotnet
             //str有很多版本,以后抓包看看
             byte[] tUnknownStr  = getBytes("1c210c99585fd22ad03d35c956911aeec1eb449b");
 
-            //计算ror
-            int pwdLen = (passWord.Length>16)? 16 : passWord.Length;
+            //计算ror 和 passlen
+            int passLen   = (passWord.Length>16)? 16 : passWord.Length;
+            byte tPassLen = (uint8) passLen;
             byte[] tRor = packetBuildCalculateRor(tMd5a,passWord);
 
             //第二次拼接
             packet.AddBytes(tMd5c);
             packet.AddBytes(new byte[] { tIPDog, 0x00, 0x00, 0x00, 0x00 }, 110);
-            packet.AddBytes(tHostName, 142);
+            packet.AddBytes(tHostName,     142);
             packet.AddBytes(tPrimaryDNS);
             packet.AddBytes(tDHCP);
             packet.AddBytes(tSecondaryDNS, 154);
             packet.AddBytes(tOSInfo);
             packet.AddBytes(tDrComCheck);
-            packet.AddBytes(tZero55, 246);
+            packet.AddBytes(tZero55,       246);
             packet.AddBytes(tUnknownStr,   286);
-            packet.AddBytes(tFixed,   313);
-
+            packet.AddBytes(tFixed,        313);
+            packet.AddByte (tPassLen);
+            packet.AddBytes(tRor,          314 + passLen);
             //现在是2020年八月25日凌晨0点,由于宿舍停电,未经调试,紧急保存现场
-            //这里有错误,停电了,改天再说
-            packet.AddBytes(tRor, packetLength - 8);
-
+            
             //计算checksum
-            byte[] checksum = packetBuildCalculateChecksum(packet.bytes);
-            byte[] tCheckSum = new byte[] {
-                0x02, 0x0c, checksum[0], checksum[3], 0x00, 0x00, macAddress[0], macAddress[7]
+            byte[] tCheckSum  = packetBuildCalculateChecksum( packet.bytes[0..(315+passLen)] )[0..4];
+            Utils.printBytesHex(tCheckSum);
+            byte[] tBeforeCheckSum = new byte[] {
+                0x02, 0x0c, 
             };
+            byte[] tAfterCheckSum = new byte[] {
+                0x00, 0x00
+            };
+            Utils.printBytesHex(tCheckSum,"tCheckSum");
+
+            //计算tMac
+            ref byte[] tMac = ref macAddress;
+
+            // tZeroCount Protocol版
+            // var zeroCount = (4 - passLen % 4) % 4;
+            // byte[] tZeroCount = new byte[zeroCount];
+
+            // tZeroCount newclinet.py版
+            var zeroCount = passLen / 4 == 4? 0 : passLen / 4; // Weird...
+            byte[] tZeroCount = new byte[zeroCount];
+
+            // tRand
+            byte[] tRand = new byte[2];
+            Random random = new Random();
+            random.NextBytes(tRand);
 
             //第三次拼接
+            packet.AddBytes(tBeforeCheckSum);
             packet.AddBytes(tCheckSum);
+            packet.AddBytes(tAfterCheckSum);
+            packet.AddBytes(tMac,          passLen + 328);
+            packet.AddBytes(tZeroCount);
+            packet.AddBytes(tRand);
 
-            //还要补0,停电了,改天再说
+            //检验并返回
+            //Debug.Assert(packet.offset == packet.bytesLength);
 
             return packet.bytes;
-
         }
         public void login()
         {
             //计算packet长度
             //t 表示意义不明的临时变量.协议描述中为 x / 4 * 4,等于x - x % 4
-            int t0 = (settings.passWord.Length>16)? 16 : settings.passWord.Length;
+            int t0 = (settings.passWord.Length > 16)? 16 : settings.passWord.Length;
             int t1 = t0 - 1;
             int packetLength = 334 + t1 - t1 % 4;
 
             //构建packet
             byte[] packet = packetBuild(packetLength);
-            Utils.printBytesHex(packet);
+            Utils.printBytesHex(packet,"Packet");
 
             //进行通信
+            //发送
+            socket.SendTo(
+                packet,
+                0,
+                packetLength + 32,
+                SocketFlags.None,
+                settings.serverIPEndPoint
+            );
+            //接收
+            byte[] recv = new byte[128];
+            socket.Receive(recv);
+            Utils.printBytesHex(recv,"recv");
+
+            //判断是否成功
+            byte[] status = recv[0..6];
+            if(status[0] == 0x04)
+            {
+                Console.WriteLine("登录成功!");
+            }
+            else if(status[0] == 0x05)
+            {
+                Console.WriteLine($"登录失败!");
+                Utils.printBytesHex(status, "错误信息");
+                //TODO: 判断具体错误
+                throw new Exception();
+            }
+
         }
 
         public Logger(Socket socketArg, Settings settingsArg)
@@ -451,13 +548,14 @@ namespace DrComDotnet
         {
             Console.WriteLine("Hello World!");
             //流程 握手->登录->KeepAlive
+            Console.WriteLine($"{args[0]},{args[1]}");
 
             //初始化设置
             Settings settings   = new Settings();
-            settings.userName   = "XXXXX";
-            settings.passWord   = "XXXXX";
+            settings.userName   = args[0];
+            settings.passWord   = args[1];
             settings.hostName   = "LENNOVE";
-            settings.macAddress = new byte[]{0x01, 0x03, 0x05, 0x01, 0x03, 0x05};
+            settings.macAddress = new byte[]{0x9A, 0x5F, 0xD3, 0xD8, 0x82, 0x8B};
             Debug.Assert(settings.check());
 
             //初始化socket(UDP报文形式的SOCKET)
