@@ -10,14 +10,15 @@ Inspired by newclinet.py(zhjc1124) and jlu-drcom-protocol(YouthLin).
 */
 
 using System;
-using System.Linq;
 using System.Net;
+using System.Linq;
+using System.Text;
+using System.Numerics;
+using System.Threading;
 using System.Net.Sockets;
 using System.Diagnostics;
-using System.Text;
-using System.Threading;
 using System.Security.Cryptography;
-using System.Numerics;
+
 
 namespace DrComDotnet
 {
@@ -325,13 +326,13 @@ namespace DrComDotnet
             //按照模板(https://github.com/drcoms/jlu-drcom-client/blob/master/jlu-drcom-java/jlu-drcom-protocol.md)构建packet.由于长度不固定,代码必须一点点写,所以非常难看
             //这里使用了一个自己定义的类用来方便的拼接字符串。如果有内置类当然就是白忙活了
             //还有,由于有些参数必须在拼接一部分后才能计算,所以分三次拼接
-            var packet = new Utils.BytesLinker(packetLength + 28); //由于补0的奇怪算法
+            var packet = new Utils.BytesLinker(packetLength + 28); //由于补0的奇怪算法,增加长度
 
             //一个packet中有很多参数(以t开头进行区分),一一计算拼接
             //前4个固定的packet参数。
-            const byte tCode= 0x03;
-            const byte tType= 0x01;
-            const byte tEof = 0x00;
+            const byte tCode = 0x03;
+            const byte tType = 0x01;
+            const byte tEof  = 0x00;
             byte       tUsrLen = (byte) (userName.Length + 20);
 
             //其他几个固定参数
