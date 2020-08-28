@@ -3,8 +3,8 @@ DrComDotnet - JLU DrCom Clinet written in C#
 coding:   UTF-8
 csharp:   8
 dotnet:   Dotnet Core 3
-version:  0.0.3
-codename: Still a Flower Bud (仍是花蕾)
+version:  0.0.5
+codename: Chitanda Eru
 
 Inspired by newclinet.py(zhjc1124) and jlu-drcom-protocol(YouthLin).
 */
@@ -584,51 +584,106 @@ namespace DrComDotnet
         public  Socket   socket;
         private Random   random;
         private Settings settings;
+        private MD5      md5Builder  = new MD5CryptoServiceProvider();
         private byte     keep40Count = 0;
         public  byte[]   md5a;
         public  byte[]   tail1;
         public  byte[]   tail2;
 
+        public byte[] keep40PacketBuild(int serverNumber,int random, byte[] tail,int typeNum=1,bool isFirst=false)
+        {
+            // 函数另外几个参数
+
+            
+            //计算几个固定参数
+            byte   tServerNum   = (byte) serverNumber;
+            byte   tTypeNum     = (byte) typeNum;
+            byte[] tKeepAliveVer = isFirst? new byte[]{0x0f,0x27} : new byte[]{0xdc, 0x02};
+            ref byte[] tTail = ref tail;
+
+            //计算tData
+            byte[] tData = new byte[16];
+            if(typeNum == 1)
+            {
+                // 应该是全为0. 但初始化默认就为0,所以啥都不做就行
+            }
+            else if(typeNum == 3)
+            {
+                //本来还是有crc啥的,不过newclinet.py注释掉了,全填的0
+                settings.handShakeIP.GetAddressBytes().CopyTo(tData, 4);
+            }
+            else
+            {
+                Console.WriteLine($"在构建keep40包的过程中遇到了未知的类型: {typeNum}");
+            }
+
+            // 连接包
+            Utils.BytesLinker packet = new Utils.BytesLinker(40);
+            packet.AddByte (0x07);
+            packet.AddByte (tServerNum);
+            packet.AddBytes(new byte[] {0x28,0x00,0x0b});
+            packet.AddByte (tTypeNum);
+            packet.AddBytes(tKeepAliveVer);
+            packet.AddBytes(new byte[] { 0x2f, 0x12 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00});
+            packet.AddBytes(tTail);
+            packet.AddBytes(new byte[] { 0x00 ,0x00 ,0x00 ,0x00});
+            packet.AddBytes(tData);
+
+            //检查
+            Utils.printBytesHex(packet.bytes, "keep40 Packet");
+            Debug.Assert(packet.offset == 40, $"包长度不符合预期! 预期: 40 实际: {packet.offset}");
+
+            return packet.bytes;
+        }
+
         public byte[] keep38(byte[] md5a, byte[] tail1)
         {
-            //构建包
-            //格式0xff md5a:16位 0x00 0x00 0x00 tail1:16位 rand1 rand2
-            Utils.BytesLinker packet = new Utils.BytesLinker(38);            
-            packet.AddByte (0x00);
+            //构建包 keep38构建包比较简单,直接写在一起。keep40比较麻烦,外加一个keep40PacketBuild
+            //    格式0xff [md5a:16位] 0x00 0x00 0x00 [tail1:16位] time1 time2     //根据newclinet,是time而非rand
+            Utils.BytesLinker packet = new Utils.BytesLinker(38 + 4);             //根据newclinet,补4位0  
+
+            // 计算tTime(newclinet版本)
+            long timeStamp = DateTimeOffset.Now.ToUnixTimeSeconds();
+            byte[] tTime = new byte[2] {(byte) (timeStamp & 0xFF00) ,(byte) (timeStamp & 0xFF)}; //取后16位
+            
+            // 连接包
+            packet.AddByte (0xff);
             packet.AddBytes(md5a);
             packet.AddBytes(new byte[] {0x00, 0x00, 0x00});
             packet.AddBytes(tail1);
-            byte[] tRandom = new byte[2] {0x00,0x00};
-            random.NextBytes(tRandom);
-            packet.AddBytes(tRandom);
+            packet.AddBytes(tTime);
+
+            // Protocol版本,tTime -> tRand
+            //byte[] tRandom = new byte[2] {0x00,0x00};random.NextBytes(tRandom);packet.AddBytes(tRandom);
 
             //发送
             socket.SendTo(
                 packet.bytes,
                 0,
-                38,
+                38 + 4,
                 SocketFlags.None,
                 settings.serverIPEndPoint
             );
+            Utils.printBytesHex(packet.bytes, "keep38 send");
 
             //接收
             byte[] recv = new byte[32];
             socket.Receive(recv);
+            Utils.printBytesHex(packet.bytes, "keep38 recv");
+
+            //检查
+            Debug.Assert(recv[0] == 0x07, "接收的包不符合预期!");
 
             //获得 keepAliveVer,用于keep40
             byte[] keepAliveVer = recv[28..29];
             return keepAliveVer;
         }
 
-        void keep40A()
+        void keep40()
         {
-
+            
         }
 
-        void keep40B()
-        {
-
-        }
 
         void keep40Extra()
         {
@@ -636,8 +691,9 @@ namespace DrComDotnet
         }
 
         // 无限循环
-        public void KeepAlive()
+        public void keepAlive()
         {
+            return ; //先pass掉
             int i;
             while(true)
             {
@@ -647,8 +703,7 @@ namespace DrComDotnet
                     keep38(md5a,tail1);
                     if(i==0)
                         keep40Extra();
-                    keep40A();
-                    keep40B();
+                    keep40();
                 }
             }
             /*
@@ -701,19 +756,26 @@ namespace DrComDotnet
             socket.Bind(bindIpPort);
             socket.SendTimeout     = 3000;
             
+
             //握手
+            Console.WriteLine("========= Begin HandShake =========");
             Handshaker handshaker        = new Handshaker(socket,settings);
             var (salt,handShakeClinetIP) = handshaker.handShake();
             settings.handShakeIP         = handShakeClinetIP;
             settings.salt                = salt;
 
+
             //登录
+            Console.WriteLine("========= Begin Login =========");
             Logger logger = new Logger(socket,settings);
             byte[] tail1  = logger.login();
 
+            // 暂不实现 empty_socket_buffer
+
             //保持在线
+            Console.WriteLine("========= Begin KeepAlive =========");
             KeepAliver keepAliver = new KeepAliver(socket, settings, logger.md5a, tail1);
-            keepAliver.KeepAlive();
+            keepAliver.keepAlive();
 
             //清理
             socket.Close();
