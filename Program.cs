@@ -566,7 +566,7 @@ namespace DrComDotnet
                 throw new Exception();
             }
             //获取tail1,用于KeepAliver
-            byte[] tail1 = recv[23..29];
+            byte[] tail1 = recv[23..39];
             return tail1;
         }
 
@@ -663,9 +663,9 @@ namespace DrComDotnet
             Utils.printBytesHex(packet.bytes, "keep38 send");
 
             //接收
-            byte[] recv = new byte[32];
+            byte[] recv = new byte[64];
             socket.Receive(recv);
-            Utils.printBytesHex(packet.bytes, "keep38 recv");
+            Utils.printBytesHex(recv, "keep38 recv");
 
             //检查
             Debug.Assert(recv[0] == 0x07, "接收的包不符合预期!");
@@ -683,7 +683,7 @@ namespace DrComDotnet
 
             // 构建第一次用的包
             byte[] packet = new byte[40]; // 共用发送变量
-            byte[] recv   = new byte[40]; // 共用接收变量
+            byte[] recv   = new byte[512]; // 共用接收变量
             byte[] tail   = new byte[4 ]; // 共用接收变量
 
             //循环直到返回期望的值
@@ -709,7 +709,7 @@ namespace DrComDotnet
                     //正常
                     break;
                 }
-                else if(recv[0..2] == new byte[] {0x07, 0x10})
+                else if(recv[0] == 0x07 && recv[2] == 0x10)
                 {
                     //接收的是file,需要重发一次
                     serverNum++;
@@ -733,6 +733,7 @@ namespace DrComDotnet
                 );
                 //接收,判断,增加serverNum计数器,获取新tail
                 socket.Receive(recv);
+                Utils.printBytesHex(recv,"keep40Recv");
                 Debug.Assert(recv[0] == 0x07);
                 serverNum++;
                 tail = recv[16..20];
@@ -748,6 +749,7 @@ namespace DrComDotnet
                 );
                 //接收,判断,增加serverNum计数器,获取新tail
                 socket.Receive(recv);
+                Utils.printBytesHex(recv,"keep40Recv");
                 Debug.Assert(recv[0] == 0x07);
                 serverNum++;
                 tail = recv[16..20];
@@ -757,11 +759,15 @@ namespace DrComDotnet
                 {
                     packet = keep40PacketBuild(i, tail, 1);
                     socket.SendTo(packet, settings.serverIPEndPoint);
-                    socket.Receive(tail, 16, 4, SocketFlags.None); // 获得新tail
+                    socket.Receive(recv); // 获得新tail
+                    Utils.printBytesHex(recv,"keep40Recv");
+                    tail = recv[16..20];
 
                     packet = keep40PacketBuild(i, tail, 3);
                     socket.SendTo(packet, settings.serverIPEndPoint);
-                    socket.Receive(tail, 16, 4, SocketFlags.None); // 获得新tail
+                    socket.Receive(recv); // 获得新tail
+                    Utils.printBytesHex(recv,"keep40Recv");
+                    tail = recv[16..20];
 
                     Thread.Sleep(20 * 1000);
                     
@@ -782,6 +788,8 @@ namespace DrComDotnet
         {
             this.settings = settings;
             this.socket   = socket;
+            this.md5a     = md5a;
+            this.tail1    = tail1;
         }
     }
 
@@ -806,7 +814,8 @@ namespace DrComDotnet
             IPAddress   bindIP     = IPAddress.Parse("0.0.0.0");
             IPEndPoint  bindIpPort = new IPEndPoint(bindIP, 61440);
             socket.Bind(bindIpPort);
-            socket.SendTimeout     = 3000;
+            socket.SendTimeout     = 3000; //三秒
+            socket.ReceiveTimeout  = 3000; //三秒
             
 
             //握手
@@ -822,7 +831,19 @@ namespace DrComDotnet
             Logger logger = new Logger(socket,settings);
             byte[] tail1  = logger.login();
 
-            // 暂不实现 empty_socket_buffer
+            // 清空socket empty_socket_buffer
+            byte[] t = new byte[128];
+            try
+            {
+                while(true)
+                {
+                    socket.Receive(t);
+                }
+            }
+            catch(SocketException)
+            {
+                Console.WriteLine("已清空socket");
+            }
 
             //保持在线
             Console.WriteLine("========= Begin KeepAlive =========");
