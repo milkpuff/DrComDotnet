@@ -582,22 +582,18 @@ namespace DrComDotnet
     class KeepAliver
     {
         public  Socket   socket;
-        private Random   random;
         private Settings settings;
-        private MD5      md5Builder  = new MD5CryptoServiceProvider();
-        private byte     keep40Count = 0;
         public  byte[]   md5a;
         public  byte[]   tail1;
-        public  byte[]   tail2;
 
-        public byte[] keep40PacketBuild(int serverNumber,int random, byte[] tail,int typeNum=1,bool isFirst=false)
+        public byte[] keep40PacketBuild(uint8 serverNumber, byte[] tail, uint8 typeNum=1,bool isFirst=false)
         {
+            // random 从未使用, What's the point?
             // 函数另外几个参数
-
             
             //计算几个固定参数
-            byte   tServerNum   = (byte) serverNumber;
-            byte   tTypeNum     = (byte) typeNum;
+            byte   tServerNum   = serverNumber;
+            byte   tTypeNum     = typeNum;
             byte[] tKeepAliveVer = isFirst? new byte[]{0x0f,0x27} : new byte[]{0xdc, 0x02};
             ref byte[] tTail = ref tail;
 
@@ -681,53 +677,109 @@ namespace DrComDotnet
 
         void keep40()
         {
+            //UInt16 rand =(UInt16) random.Next(0x000B,0xFFFF);
+            uint8  serverNum = 0;
             
+
+            // 构建第一次用的包
+            byte[] packet = new byte[40]; // 共用发送变量
+            byte[] recv   = new byte[40]; // 共用接收变量
+            byte[] tail   = new byte[4 ]; // 共用接收变量
+
+            //循环直到返回期望的值
+            packet = keep40PacketBuild(serverNum, new byte[4] , 1 , isFirst: true); // 共用
+            while(true)
+            {
+                //发送
+                socket.SendTo(
+                    packet,
+                    0,
+                    40,
+                    SocketFlags.None,
+                    settings.serverIPEndPoint
+                );
+                //接收
+                socket.Receive(recv);
+                Utils.printBytesHex(recv,"keep40Recv");
+                Debug.Assert(recv[0] == 0x07);
+
+                //分析接收的值
+                if(recv[0..4] == new byte[] {0x07,0x00,0x28,0x00} || recv[0..4] == new byte[] {0x07,serverNum,0x28,0x00})
+                {
+                    //正常
+                    break;
+                }
+                else if(recv[0..2] == new byte[] {0x07, 0x10})
+                {
+                    //接收的是file,需要重发一次
+                    serverNum++;
+                    packet = keep40PacketBuild(serverNum, new byte[4] , 1);
+                }
+                else
+                {
+                    //异常
+                    throw new Exception();
+                }
+
+                // "战斗过于艰难吗? 重整旗鼓,再来一局。"
+                packet = keep40PacketBuild(serverNum, new byte[4] , 1);
+                //发送
+                socket.SendTo(
+                    packet,
+                    0,
+                    40,
+                    SocketFlags.None,
+                    settings.serverIPEndPoint
+                );
+                //接收,判断,增加serverNum计数器,获取新tail
+                socket.Receive(recv);
+                Debug.Assert(recv[0] == 0x07);
+                serverNum++;
+                tail = recv[16..20];
+                
+                // "战斗过于艰难吗? 重整旗鼓,再来一局。"
+                packet = keep40PacketBuild(serverNum, tail , 1);
+                socket.SendTo(
+                    packet,
+                    0,
+                    40,
+                    SocketFlags.None,
+                    settings.serverIPEndPoint
+                );
+                //接收,判断,增加serverNum计数器,获取新tail
+                socket.Receive(recv);
+                Debug.Assert(recv[0] == 0x07);
+                serverNum++;
+                tail = recv[16..20];
+
+                //正戏
+                for(uint8 i=serverNum; ;i += 2)
+                {
+                    packet = keep40PacketBuild(i, tail, 1);
+                    socket.SendTo(packet, settings.serverIPEndPoint);
+                    socket.Receive(tail, 16, 4, SocketFlags.None); // 获得新tail
+
+                    packet = keep40PacketBuild(i, tail, 3);
+                    socket.SendTo(packet, settings.serverIPEndPoint);
+                    socket.Receive(tail, 16, 4, SocketFlags.None); // 获得新tail
+
+                    Thread.Sleep(20 * 1000);
+                    
+                    keep38(md5a, tail);
+                }
+            }
         }
 
-
-        void keep40Extra()
-        {
-
-        }
 
         // 无限循环
         public void keepAlive()
         {
-            return ; //先pass掉
-            int i;
-            while(true)
-            {
-                for(i=0;i<10;i++)
-                {
-                    Thread.Sleep(2000);
-                    keep38(md5a,tail1);
-                    if(i==0)
-                        keep40Extra();
-                    keep40();
-                }
-            }
-            /*
-            保持在线
-            (第一轮)
-                keep38 -> keep40_extra -> keep40_1 -> keep40_2
-                keep38 -> keep40_1 -> keep40_2
-                keep38 -> keep40_1 -> keep40_2
-                keep38 -> keep40_1 -> keep40_2
-                keep38 -> keep40_1 -> keep40_2
-                keep38 -> keep40_1 -> keep40_2
-                keep38 -> keep40_1 -> keep40_2
-                keep38 -> keep40_1 -> keep40_2
-                keep38 -> keep40_1 -> keep40_2
-                keep38 -> keep40_1 -> keep40_2
-            (第二轮 每十个 keep38 需要再次发送 keep40_extra)
-                keep38 -> keep40_extra -> keep40_1 -> keep40_2
-                ...
-            */
+            keep38(md5a, tail1);
+            keep40(); // 无限循环
         }
 
         public KeepAliver(Socket socket, Settings settings, byte[] md5a, byte[] tail1)
         {
-            random = new Random();
             this.settings = settings;
             this.socket   = socket;
         }
@@ -775,7 +827,7 @@ namespace DrComDotnet
             //保持在线
             Console.WriteLine("========= Begin KeepAlive =========");
             KeepAliver keepAliver = new KeepAliver(socket, settings, logger.md5a, tail1);
-            keepAliver.keepAlive();
+            keepAliver.keepAlive(); //无限循环
 
             //清理
             socket.Close();
