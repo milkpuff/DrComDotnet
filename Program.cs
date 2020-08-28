@@ -565,9 +565,9 @@ namespace DrComDotnet
                 //TODO: 判断具体错误
                 throw new Exception();
             }
-            //获取tail1,用于KeepAliver
-            byte[] tail1 = recv[23..39];
-            return tail1;
+            //获取tail16,用于KeepAliver
+            byte[] tail16 = recv[23..39];
+            return tail16;
         }
 
         public Logger(Socket socketArg, Settings settingsArg)
@@ -584,7 +584,7 @@ namespace DrComDotnet
         public  Socket   socket;
         private Settings settings;
         public  byte[]   md5a;
-        public  byte[]   tail1;
+        public  byte[]   tail16;
 
         public byte[] keep40PacketBuild(uint8 serverNumber, byte[] tail, uint8 typeNum=1,bool isFirst=false)
         {
@@ -632,21 +632,25 @@ namespace DrComDotnet
             return packet.bytes;
         }
 
-        public byte[] keep38(byte[] md5a, byte[] tail1)
+        public byte[] keep38(byte[] md5a, byte[] tail16)
         {
             //构建包 keep38构建包比较简单,直接写在一起。keep40比较麻烦,外加一个keep40PacketBuild
-            //    格式0xff [md5a:16位] 0x00 0x00 0x00 [tail1:16位] time1 time2     //根据newclinet,是time而非rand
-            Utils.BytesLinker packet = new Utils.BytesLinker(38 + 4);             //根据newclinet,补4位0  
 
+            //检查参数
+            Debug.Assert(tail16.Length == 16);
+            Debug.Assert(md5a.Length == 16);
+    
             // 计算tTime(newclinet版本)
             long timeStamp = DateTimeOffset.Now.ToUnixTimeSeconds();
             byte[] tTime = new byte[2] {(byte) (timeStamp & 0xFF00) ,(byte) (timeStamp & 0xFF)}; //取后16位
             
             // 连接包
+            //    格式0xff [md5a:16位] 0x00 0x00 0x00 [tail16:16位] time1 time2     //根据newclinet,是time而非rand
+            Utils.BytesLinker packet = new Utils.BytesLinker(38 + 4);             //根据newclinet,补4位0  
             packet.AddByte (0xff);
             packet.AddBytes(md5a);
             packet.AddBytes(new byte[] {0x00, 0x00, 0x00});
-            packet.AddBytes(tail1);
+            packet.AddBytes(tail16);
             packet.AddBytes(tTime);
 
             // Protocol版本,tTime -> tRand
@@ -684,7 +688,7 @@ namespace DrComDotnet
             // 构建第一次用的包
             byte[] packet = new byte[40]; // 共用发送变量
             byte[] recv   = new byte[512]; // 共用接收变量
-            byte[] tail   = new byte[4 ]; // 共用接收变量
+            byte[] tail4   = new byte[4 ]; // 共用接收变量
 
             //循环直到返回期望的值
             packet = keep40PacketBuild(serverNum, new byte[4] , 1 , isFirst: true); // 共用
@@ -731,15 +735,15 @@ namespace DrComDotnet
                     SocketFlags.None,
                     settings.serverIPEndPoint
                 );
-                //接收,判断,增加serverNum计数器,获取新tail
+                //接收,判断,增加serverNum计数器,获取新tail4
                 socket.Receive(recv);
                 Utils.printBytesHex(recv,"keep40Recv");
                 Debug.Assert(recv[0] == 0x07);
                 serverNum++;
-                tail = recv[16..20];
+                tail4 = recv[16..20];
                 
                 // "战斗过于艰难吗? 重整旗鼓,再来一局。"
-                packet = keep40PacketBuild(serverNum, tail , 1);
+                packet = keep40PacketBuild(serverNum, tail4 , 1);
                 socket.SendTo(
                     packet,
                     0,
@@ -747,31 +751,33 @@ namespace DrComDotnet
                     SocketFlags.None,
                     settings.serverIPEndPoint
                 );
-                //接收,判断,增加serverNum计数器,获取新tail
+                //接收,判断,增加serverNum计数器,获取新tail4
                 socket.Receive(recv);
                 Utils.printBytesHex(recv,"keep40Recv");
                 Debug.Assert(recv[0] == 0x07);
                 serverNum++;
-                tail = recv[16..20];
+                tail4 = recv[16..20];
 
                 //正戏
                 for(uint8 i=serverNum; ;i += 2)
                 {
-                    packet = keep40PacketBuild(i, tail, 1);
+                    // keep40_1
+                    packet = keep40PacketBuild(i, tail4, 1);
                     socket.SendTo(packet, settings.serverIPEndPoint);
-                    socket.Receive(recv); // 获得新tail
+                    socket.Receive(recv); // 获得新tail4
                     Utils.printBytesHex(recv,"keep40Recv");
-                    tail = recv[16..20];
+                    tail4 = recv[16..20];
 
-                    packet = keep40PacketBuild(i, tail, 3);
+                    // keep40_2
+                    packet = keep40PacketBuild(i, tail4, 3);
                     socket.SendTo(packet, settings.serverIPEndPoint);
-                    socket.Receive(recv); // 获得新tail
+                    socket.Receive(recv); // 获得新tail4
                     Utils.printBytesHex(recv,"keep40Recv");
-                    tail = recv[16..20];
+                    tail4 = recv[16..20];
 
                     Thread.Sleep(20 * 1000);
                     
-                    keep38(md5a, tail);
+                    keep38(md5a, tail16);
                 }
             }
         }
@@ -780,16 +786,16 @@ namespace DrComDotnet
         // 无限循环
         public void keepAlive()
         {
-            keep38(md5a, tail1);
+            keep38(md5a, tail16);
             keep40(); // 无限循环
         }
 
-        public KeepAliver(Socket socket, Settings settings, byte[] md5a, byte[] tail1)
+        public KeepAliver(Socket socket, Settings settings, byte[] md5a, byte[] tail16)
         {
             this.settings = settings;
             this.socket   = socket;
             this.md5a     = md5a;
-            this.tail1    = tail1;
+            this.tail16    = tail16;
         }
     }
 
@@ -806,7 +812,7 @@ namespace DrComDotnet
             settings.userName   = args[0];
             settings.passWord   = args[1];
             settings.hostName   = "LENNOVE";
-            settings.macAddress = new byte[]{0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            settings.macAddress = new byte[]{0x9A, 0x5F, 0xD3, 0xD8, 0x82, 0x8B};
             Debug.Assert(settings.check());
 
             //初始化socket(UDP报文形式的SOCKET)
@@ -829,7 +835,7 @@ namespace DrComDotnet
             //登录
             Console.WriteLine("========= Begin Login =========");
             Logger logger = new Logger(socket,settings);
-            byte[] tail1  = logger.login();
+            byte[] tail16  = logger.login();
 
             // 清空socket empty_socket_buffer
             byte[] t = new byte[128];
@@ -847,7 +853,7 @@ namespace DrComDotnet
 
             //保持在线
             Console.WriteLine("========= Begin KeepAlive =========");
-            KeepAliver keepAliver = new KeepAliver(socket, settings, logger.md5a, tail1);
+            KeepAliver keepAliver = new KeepAliver(socket, settings, logger.md5a, tail16);
             keepAliver.keepAlive(); //无限循环
 
             //清理
