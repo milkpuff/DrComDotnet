@@ -3,7 +3,7 @@ DrComDotnet - JLU DrCom Clinet written in C#
 coding:   UTF-8
 csharp:   8
 dotnet:   Dotnet Core 3
-version:  0.0.5
+version:  0.1.0
 codename: Chitanda Eru
 
 Inspired by newclinet.py(zhjc1124) and jlu-drcom-protocol(YouthLin).
@@ -812,7 +812,9 @@ namespace DrComDotnet
             settings.userName   = args[0];
             settings.passWord   = args[1];
             settings.hostName   = "LENNOVE";
-            settings.macAddress = new byte[]{0x9A, 0x5F, 0xD3, 0xD8, 0x82, 0x8B};
+            Random random = new Random();
+            random.NextBytes(settings.macAddress);
+
             Debug.Assert(settings.check());
 
             //初始化socket(UDP报文形式的SOCKET)
