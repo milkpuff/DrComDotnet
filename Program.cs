@@ -153,6 +153,7 @@ namespace DrComDotnet
 
             //设置默认值
             primaryDNS = IPAddress.Parse("10.10.10.10");
+            macAddress = new byte[6];
             serverIPEndPoint = new IPEndPoint(serverIP, 61440);
         }
     }
@@ -795,7 +796,7 @@ namespace DrComDotnet
             this.settings = settings;
             this.socket   = socket;
             this.md5a     = md5a;
-            this.tail16    = tail16;
+            this.tail16   = tail16;
         }
     }
 
@@ -803,7 +804,13 @@ namespace DrComDotnet
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            //检测参数个数
+            if(args.Length <= 1)
+            {
+                Console.WriteLine("格式: drcomdotnet [用户名] [密码]");
+                return ;
+            }
+
             //流程 握手->登录->KeepAlive
             Console.WriteLine($"{args[0]},{args[1]}");
 
@@ -813,7 +820,7 @@ namespace DrComDotnet
             settings.passWord   = args[1];
             settings.hostName   = "LENNOVE";
             Random random = new Random();
-            random.NextBytes(settings.macAddress);
+            random.NextBytes(settings.macAddress);  // mac地址随机生成
 
             Debug.Assert(settings.check());
 
