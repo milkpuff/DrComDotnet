@@ -27,6 +27,7 @@ namespace DrComDotnet
     //小工具
     static class Utils
     {
+        // 将Bytes按16进制输出
         static public void printBytesHex(byte[] bytes,string name = "Hex")
         {
             Console.Write("[{0} {1,2:D}] ",name,bytes.Length);
@@ -52,20 +53,12 @@ namespace DrComDotnet
                 offset           = 0;
             }
 
-            //定义溢出异常,没太有必要,只是用来学习
-            public class BytesLinkOverflowException: ApplicationException
-            {   
-                public BytesLinkOverflowException(string message): base(message)
-                {
-                }
-            }
-
             public void AddBytes(byte[] src)
             {
                 //判断是否溢出
                 if(offset + src.Length > bytesLength)
                 {
-                    throw new BytesLinkOverflowException($"offset={offset},bytesLength={bytesLength},src.Length={src.Length}");
+                    throw new ApplicationException($"offset={offset},bytesLength={bytesLength},src.Length={src.Length}");
                 }
 
                 //连接并偏移
@@ -80,7 +73,7 @@ namespace DrComDotnet
                 if(offset != assertOffset)
                 {
                     Console.WriteLine($"错误,packet长度与预期偏移不符合! 预期:{assertOffset} 实际:{offset}");
-                    throw new Exception();
+                    throw new ApplicationException();
                 }
             }
 
@@ -90,7 +83,7 @@ namespace DrComDotnet
                 //判断是否溢出
                 if(offset + 1 > bytesLength)
                 {
-                    throw new BytesLinkOverflowException($"offset={offset},bytesLength={bytesLength},src.Length={1}");
+                    throw new ApplicationException($"offset={offset},bytesLength={bytesLength},src.Length={1}");
                 }
                 //连接并偏移
                 bytes[offset] = src;
@@ -103,6 +96,7 @@ namespace DrComDotnet
                 get { return bytes[r]; }
             }
         }
+
     }
 
     //设置
@@ -164,21 +158,21 @@ namespace DrComDotnet
     class Handshaker
     {
 
-        private uint8 challenge_times = 0x02;
-        private Socket socket;
+        private readonly uint8 challengeTimes = 0x02; //protocol是可变的,newclinet是不变的
+        private readonly Socket socket;
         private Settings settings;
 
         // 用于packetBuild
-        Random randomBuilder = new Random();
+        private readonly Random  randomBuilder = new Random();
 
         // 构建握手需要的包
-        private byte[] packetBuild(uint8 challenge_times)
+        private byte[] packetBuild(uint8 challengeTimes)
         {
             // 四部分组成 packet(20B) = begin(1B) + times(1B) + rand(2B) + end(17B)
             byte[] begin = new byte[] {0x01};
             byte[] rand  = new byte[2];
             randomBuilder.NextBytes(rand);
-            byte[] times = {challenge_times};
+            byte[] times = {challengeTimes};
             byte[] end   = new byte[] { 0x6a,
                 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -198,7 +192,7 @@ namespace DrComDotnet
         public Tuple<byte[], IPAddress> handShake()
         {
             //构建握手包
-            byte[] packet = packetBuild(challenge_times);
+            byte[] packet = packetBuild(challengeTimes);
             Utils.printBytesHex(packet,"packet");
 
             //发送
@@ -344,7 +338,7 @@ namespace DrComDotnet
             //计算md5a
             MD5 md5Builder = new MD5CryptoServiceProvider();
             byte[] tMd5a = md5Builder.ComputeHash(
-                new byte[]{tCode,tType}
+                new byte[] {tCode,tType}
                     .Concat(salt)
                     .Concat(passWord)
                     .ToArray()
@@ -357,7 +351,7 @@ namespace DrComDotnet
                 new byte[]{0x01}
                     .Concat(passWord)
                     .Concat(salt)
-                    .Concat(new byte[4] {0x00,0x00,0x00,0x00})
+                    .Concat(new byte[] {0x00,0x00,0x00,0x00})
                     .ToArray()
             );
 
@@ -374,9 +368,9 @@ namespace DrComDotnet
             //生成IP部分
             const byte tIPNum  = 0x01; //对应numOfIP
             byte[] tIP1        = ip1;
-            byte[] tIP2        = new byte[4] {0x00,0x00,0x00,0x00};
-            byte[] tIP3        = new byte[4] {0x00,0x00,0x00,0x00};
-            byte[] tIP4        = new byte[4] {0x00,0x00,0x00,0x00};
+            byte[] tIP2        = new byte[] {0x00,0x00,0x00,0x00};
+            byte[] tIP3        = new byte[] {0x00,0x00,0x00,0x00};
+            byte[] tIP4        = new byte[] {0x00,0x00,0x00,0x00};
  
             //第一次拼接
             packet.AddBytes( new byte[] {
@@ -461,7 +455,7 @@ namespace DrComDotnet
 
             //第二次拼接
             packet.AddBytes(tMd5c);
-            packet.AddBytes(new byte[] { tIPDog, 0x00, 0x00, 0x00, 0x00 }, 110);
+            packet.AddBytes(new byte[]    { tIPDog, 0x00, 0x00, 0x00, 0x00 }, 110);
             packet.AddBytes(tHostName,     142);
             packet.AddBytes(tPrimaryDNS);
             packet.AddBytes(tDHCP);
@@ -557,14 +551,14 @@ namespace DrComDotnet
                 Console.WriteLine($"登录失败!");
                 Utils.printBytesHex(status, "错误信息");
                 //TODO: 判断具体错误
-                throw new Exception();
+                throw new ApplicationException();
             }
             else
             {
                 Console.WriteLine("登录失败!未知错误");
                 Utils.printBytesHex(status, "错误信息");
                 //TODO: 判断具体错误
-                throw new Exception();
+                throw new ApplicationException();
             }
             //获取tail16,用于KeepAliver
             byte[] tail16 = recv[23..39];
@@ -582,8 +576,8 @@ namespace DrComDotnet
     //KeepAliver
     class KeepAliver
     {
-        public  Socket   socket;
-        private Settings settings;
+        public  readonly Socket   socket;
+        private readonly Settings settings;
         public  byte[]   md5a;
         public  byte[]   tail16;
 
@@ -723,7 +717,7 @@ namespace DrComDotnet
                 else
                 {
                     //异常
-                    throw new Exception();
+                    throw new ApplicationException();
                 }
 
                 // "战斗过于艰难吗? 重整旗鼓,再来一局。"
@@ -800,7 +794,7 @@ namespace DrComDotnet
         }
     }
 
-    class Program
+    static class Program
     {
         static void Main(string[] args)
         {
