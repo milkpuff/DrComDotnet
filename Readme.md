@@ -13,6 +13,19 @@
 
    $ drcomdotnet [用户名] [密码]
 
+## 源码使用
+
+没有使用Visual Studio.安装.Net Core sdk之后直接运行
+
+   $ dotnet run
+
+## 路线图
+
+- 增加JSON配置文件
+- 自动连接wifi
+- 针对.Net Framework 4.6进行编译(大部分Windows 10预装)
+- 图形界面
+
 ## 引用项目
 
 [jlu-drcom-client](https://github.com/drcoms/jlu-drcom-client) AGPL许可
