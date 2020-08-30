@@ -19,11 +19,11 @@
 
    $ dotnet run
 
-## 路线图
+## 路线
 
 - 增加JSON配置文件
-- 自动连接wifi
-- 针对.Net Framework 4.6进行编译(大部分Windows 10预装)
+- 自动连接WIFI
+- 针对.Net Framework 4.6进行编译 (大部分Windows 10预装)
 - 图形界面
 
 ## 引用项目
@@ -33,3 +33,39 @@
 ## 许可
 
 GNU AGPL v3
+
+## option.json设计格式
+
+目前只有部分功能可用(注释中没有 x 的)
+
+```JSON
+{
+   "version": 1,                //配置文件版本,也许将来会升级?
+   "debug" : {                  //调试选项
+       "enabled"    : true,       //是否启用 x
+       "sendTimeout": 3000,       //socket发送超时时长
+       "recvTimeout": 3000,       //socket接收超时时长
+       "bindIP"   : "0.0.0.0",    //socket绑定地址
+       "logLevel"   : 2           //输出信息 0:静默 1:正常 2:详细 x
+   },
+   "user"  : {                  //用户信息
+       "name"     : "XXXXXX",     //校园网登录 用户名,可能会被命令行参数覆盖
+       "password" : "XXXXXX",     //校园网登录 密码  ,可能会被命令行参数覆盖
+       "mac"      : "00-11-22-33-44-55-66-77",  //网卡地址,填"random"表示使用随机地址
+       "hostName" : "LENOV-ABCD", //用户主机名称,长度小于32
+       "ip"       : "DHCP",       //用户IP地址,不填或填DHCP表示使用握手返回的IP地址
+       "dns"      : "10.10.10.10",//用户首选DNS
+       "randomMac": false         //是否使用随机DNS,填true会覆盖mac项中的固定mac
+   },
+   "authServer" : {             //认证服务器信息
+       "host"  : "auth.jlu.edu.cn", // 网址,会调用DNS进行查询,获得IP地址
+       "ip"    : "10.100.61.3",     // IP地址,若使用网址未查到则会使用这个
+       "port"  : 61440,             // 端口
+       "useDNS": true               // 是否使用DNS查询IP
+   },
+   "misc" : {                  // 杂项
+       "autoConnectWifi": false,  // 自动连接authWIFI x
+       "authWifi"       : "JLU.PC"// 认证WIFI名       x
+   }
+}
+```

@@ -1,0 +1,29 @@
+{
+    "version": 1,
+    "debug" : {
+        "enabled"    : true,
+        "sendTimeout": 3000,
+        "recvTimeout": 3000,
+        "bindIP"     : "0.0.0.0",
+        "logLevel"   : 2
+    },
+    "user"  : {
+        "name"     : "XXXXXX",
+        "password" : "XXXXXX",
+        "hostName" : "LENOV-ABCD",
+        "mac"      : "00-11-22-33-44-55",
+        "ip"       : "DHCP",
+        "dns"      : "10.10.10.10",
+        "randomMac": true
+    },
+    "authServer" : {
+        "host"  : "auth.jlu.edu.cn",
+        "ip"    : "10.100.61.3",
+        "port"  : 61440,
+        "useDNS": true
+    },
+    "misc" : {
+        "autoConnectWifi": false,
+        "authWifi"       : "JLU.PC"
+    }
+}

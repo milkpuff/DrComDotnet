@@ -3,152 +3,170 @@ DrComDotnet - JLU DrCom Clinet written in C#
 coding:   UTF-8
 csharp:   8
 dotnet:   Dotnet Core 3
-version:  0.1.0
-codename: Chitanda Eru
+version:  0.2.0
+codename: 
 
 Inspired by newclinet.py(zhjc1124) and jlu-drcom-protocol(YouthLin).
 */
 
 using System;
-using System.Net;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Numerics;
 using System.Threading;
-using System.Net.Sockets;
 using System.Diagnostics;
 using System.Security.Cryptography;
-
 
 namespace DrComDotnet
 {
     using uint8 = System.Byte;
 
-    //小工具
-    static class Utils
-    {
-        // 将Bytes按16进制输出
-        static public void printBytesHex(byte[] bytes,string name = "Hex")
-        {
-            Console.Write("[{0} {1,2:D}] ",name,bytes.Length);
-            foreach(byte i in bytes)
-            {
-                Console.Write("{0,2:X2} ",i);
-            }
-            Console.WriteLine();
-        }
-
-        //将bytes进行连接
-        public class BytesLinker
-        {
-            public  byte[] bytes       {get; private set; }
-            public  int    bytesLength {get; private set; }
-            public  int    offset      {get; private set; }      //偏移量，第一个未填充的字符的下标
-
-            //初始化
-            public BytesLinker(int bytesLength)
-            {
-                this.bytes       = new byte[bytesLength];
-                this.bytesLength = bytesLength;
-                offset           = 0;
-            }
-
-            public void AddBytes(byte[] src)
-            {
-                //判断是否溢出
-                if(offset + src.Length > bytesLength)
-                {
-                    throw new ApplicationException($"offset={offset},bytesLength={bytesLength},src.Length={src.Length}");
-                }
-
-                //连接并偏移
-                src.CopyTo(bytes, offset);
-                offset += src.Length;
-            }
-
-            //连接并检验offset
-            public void AddBytes(byte[] src, int assertOffset)
-            {
-                AddBytes(src);
-                if(offset != assertOffset)
-                {
-                    Console.WriteLine($"错误,packet长度与预期偏移不符合! 预期:{assertOffset} 实际:{offset}");
-                    throw new ApplicationException();
-                }
-            }
-
-            //添加一个byte
-            public void AddByte(byte src)
-            {
-                //判断是否溢出
-                if(offset + 1 > bytesLength)
-                {
-                    throw new ApplicationException($"offset={offset},bytesLength={bytesLength},src.Length={1}");
-                }
-                //连接并偏移
-                bytes[offset] = src;
-                offset++;
-            }
-            
-            //重载切片，用于练习
-            public byte[] this[Range r]
-            {
-                get { return bytes[r]; }
-            }
-        }
-
-    }
-
     //设置
     class Settings
     {
+        //用户名,密码,mac
         public string    userName    { get; set; }
         public string    passWord    { get; set; }
-        public string    hostName    { get; set; }
         public byte[]    macAddress  { get; set; }
-        public IPAddress serverIP    { get; set; }
-        public IPAddress userIP      { get; set; }  //可能没用
-        public IPAddress userDNS     { get; set; }  //可能没用
         public IPAddress primaryDNS  { get; set; }
-        public IPAddress handShakeIP { get; set; }  //handShake(challenge)返回的IP
-        public IPEndPoint serverIPEndPoint { get; set; }
-        
-        public string   serverHost      = "auth.jlu.edu.cn";
-        public string   defaultServerIp = "10.100.61.3";
-        public byte[]   salt;
+        public string    userHostName{ get; set; }
+        public IPAddress userIP      { get; set; }
+        public bool      useDHCP     { get; set; } 
 
-        public void loadFromJsonFile(string filePath)
+        //认证服务器 IP,端口。只有serverIPEndPoint对外可见
+        private IPAddress   serverIP;
+        private int         serverPort;
+        public  IPEndPoint  serverIPEndPoint { get; private set;}
+        private string      serverHost      = "auth.jlu.edu.cn";
+
+        //debug 和 socket 设置
+        private bool     isDebug;
+        public  int      socketTimeoutSend { get; private set; }
+        public  int      socketTimeoutRecv { get; private set; }
+        public IPAddress socketBindIP      { get; private set; }
+        public  int      logLevel          { get; private set; }
+        //public byte[]   salt;
+
+        public JsonOptionsModel loadFromJsonFile(string filePath)
         {
-            //先画个大饼
+            //设置读取json方式:允许注释,不区分大小写
+            var serializerOptions = new JsonSerializerOptions
+            {
+                ReadCommentHandling = JsonCommentHandling.Skip,
+                PropertyNameCaseInsensitive = true,
+                AllowTrailingCommas = true,
+            };
+
+            //读取JSON到optionsJson
+            //模型在Utils中提供
+            string jsonStr = File.ReadAllText(filePath);
+            JsonOptionsModel optionsJson = JsonSerializer.Deserialize<JsonOptionsModel>(jsonStr, serializerOptions);
+           
+            //配置用户名,密码,DNS
+            userName     = optionsJson.user.name;
+            passWord     = optionsJson.user.password;
+            primaryDNS   = IPAddress.Parse(optionsJson.user.dns);
+            userHostName = optionsJson.user.hostName;
+            
+            //配置用户MAC
+            macAddress   = new byte[6];
+            if(optionsJson.user.randomMac ||  optionsJson.user.mac.ToLower() == "random")
+            {
+                //随机mac
+                Console.WriteLine("随机mac");
+                Random random = new Random();
+                random.NextBytes(macAddress);
+            }else{
+                //固定mac
+                macAddress = optionsJson.user.mac
+                    .Split('-')
+                    .Take(6)
+                    .Select( (x) => (byte) Convert.ToInt16(x,16) )
+                    .ToArray();                
+            } // Maybe: System mac
+            //配置用户IP
+            if(optionsJson.user.ip.ToUpper() != "DHCP" && optionsJson.user.ip != "")
+            {
+                userIP = IPAddress.Parse(optionsJson.user.ip);
+                useDHCP = false;
+            }else{
+                useDHCP = true;
+            }
+
+            // 认证服务器部分
+            serverIP        = IPAddress.Parse(optionsJson.authServer.ip);
+            serverHost      = optionsJson.authServer.host;
+            serverPort      = optionsJson.authServer.port;
+
+            // debug 部分
+            isDebug           = optionsJson.debug.enabled;
+            socketTimeoutSend = optionsJson.debug.sendTimeout;
+            socketTimeoutRecv = optionsJson.debug.recvTimeout;
+            logLevel          = optionsJson.debug.logLevel;
+            socketBindIP      = IPAddress.Parse(optionsJson.debug.bindIP);
+
+            return optionsJson;
         }
 
         // TODO: 
-        public bool check()
+        public void show()
         {
-            return userName.Length   <= 36
-                && macAddress.Length == 6
-                && hostName.Length   <= 32
-            ;
+            //检查
+            Debug.Assert(userHostName.Length < 32);
+            Debug.Assert(macAddress.Length == 6);
+
+            //判断输出等级
+            //if(logLevel < 2)
+                //return;
+
+            //输出信息
+            Console.WriteLine($@"        
+                //用户名,密码,mac
+                userName   = {userName}
+                passWord   = {passWord}
+                primaryDNS = {primaryDNS}
+                userIP     = {userIP}
+                useDHCP    = {useDHCP}
+
+                //认证服务器 IP,端口。只有serverIPEndPoint对外可见
+                serverIP   = {serverIP}
+                serverPort = {serverPort}
+                serverHost = {serverHost}
+                serverIPEndPoint  = {serverIPEndPoint}
+
+                //debug 和 socket 设置
+                isDebug      = {isDebug}
+                socketBindIP = {socketBindIP}
+                logLevel     = {logLevel}
+                socketTimeoutSend = {socketTimeoutSend}
+                socketTimeoutRecv = {socketTimeoutRecv}
+            ");
+            Utils.printBytesHex(macAddress,"macAddress");
         }
 
-        public Settings()
+        public void Init()
         {
-            //尝试用DNS获取认证服务器IP
+            // 尝试用DNS获取认证服务器IP
             try
             {
                 serverIP = Dns.GetHostAddresses(serverHost)[0];
             }
-            catch(System.Net.Sockets.SocketException socketException)
+            catch(SocketException socketException)
             {  
-                Console.WriteLine($"Can not find serverIP via DNS, using {defaultServerIp}");
-                serverIP = IPAddress.Parse(defaultServerIp);
+                Console.WriteLine($"Can not find serverIP via DNS, using {serverIP}");
                 Debug.WriteLine(socketException);
             }
 
-            //设置默认值
-            primaryDNS = IPAddress.Parse("10.10.10.10");
-            macAddress = new byte[6];
-            serverIPEndPoint = new IPEndPoint(serverIP, 61440);
+            //设置serverIPEndPoint
+            serverIPEndPoint = new IPEndPoint(serverIP, serverPort);
+        }
+
+        public Settings()
+        {
         }
     }
 
@@ -238,7 +256,8 @@ namespace DrComDotnet
     {
         public Settings settings;
         public Socket   socket;
-        public byte[]   md5a;   //用于后续KeepAlive
+        public byte[]   md5a;   //参数
+        public byte[]   salt;   //用于后续KeepAlive
         
         //packetBuild的辅助函数,用来计算协议中的ror
         public byte[] packetBuildCalculateRor(byte[] md5a, byte[] password) 
@@ -303,19 +322,27 @@ namespace DrComDotnet
         } 
 
         //构建请求包
-        public byte[] packetBuild(int packetLength)
+        public byte[] packetBuild(byte[] salt)
         {
+
+
             //起个别名，方便阅读。getBytes = Encoding.Default.GetBytes
             Func<string,byte[]> getBytes = Encoding.Default.GetBytes;
 
             // 获取其他参数 username, password, mac,并转换成byte[]
-            byte[] salt       = settings.salt;
+            
             byte[] userName   = getBytes(settings.userName);
             byte[] passWord   = getBytes(settings.passWord);
             byte[] macAddress = settings.macAddress;
-            byte[] hostName   = getBytes(settings.hostName);
+            byte[] hostName   = getBytes(settings.userHostName);
             byte[] primaryDNS = settings.primaryDNS.GetAddressBytes();
-            byte[] ip1        = settings.handShakeIP.GetAddressBytes();
+            byte[] ip1        = settings.userIP.GetAddressBytes();
+
+            //计算packet长度
+            //t 表示意义不明的临时变量.协议描述中为 x / 4 * 4,等于代码中的x - x % 4
+            int t0 = (settings.passWord.Length > 16)? 16 : settings.passWord.Length;
+            int t1 = t0 - 1;
+            int packetLength = 334 + t1 - t1 % 4;
 
             //接下来了才是重点,伙计!
             //按照模板(https://github.com/drcoms/jlu-drcom-client/blob/master/jlu-drcom-java/jlu-drcom-protocol.md)构建packet.由于长度不固定,代码必须一点点写,所以非常难看
@@ -516,14 +543,8 @@ namespace DrComDotnet
         }
         public byte[] login()
         {
-            //计算packet长度
-            //t 表示意义不明的临时变量.协议描述中为 x / 4 * 4,等于x - x % 4
-            int t0 = (settings.passWord.Length > 16)? 16 : settings.passWord.Length;
-            int t1 = t0 - 1;
-            int packetLength = 334 + t1 - t1 % 4;
-
             //构建packet
-            byte[] packet = packetBuild(packetLength);
+            byte[] packet = packetBuild(salt);
             Utils.printBytesHex(packet,"Packet");
 
             //进行通信
@@ -531,7 +552,7 @@ namespace DrComDotnet
             socket.SendTo(
                 packet,
                 0,
-                packetLength + 28,
+                packet.Length,
                 SocketFlags.None,
                 settings.serverIPEndPoint
             );
@@ -560,16 +581,17 @@ namespace DrComDotnet
                 //TODO: 判断具体错误
                 throw new ApplicationException();
             }
-            //获取tail16,用于KeepAliver
+            //获取tail16,即16长度的tail,用于KeepAliver
             byte[] tail16 = recv[23..39];
             return tail16;
         }
 
-        public Logger(Socket socketArg, Settings settingsArg)
+        public Logger(Socket socketArg, Settings settingsArg, byte[] saltArg)
         {
             //赋值
             socket   = socketArg;
             settings = settingsArg;
+            salt     = saltArg;
         }
     }
 
@@ -601,7 +623,7 @@ namespace DrComDotnet
             else if(typeNum == 3)
             {
                 //本来还是有crc啥的,不过newclinet.py注释掉了,全填的0
-                settings.handShakeIP.GetAddressBytes().CopyTo(tData, 4);
+                settings.userIP.GetAddressBytes().CopyTo(tData, 4);
             }
             else
             {
@@ -798,26 +820,21 @@ namespace DrComDotnet
     {
         static void Main(string[] args)
         {
-            //检测参数个数
-            if(args.Length <= 1)
-            {
-                Console.WriteLine("格式: drcomdotnet [用户名] [密码]");
-                return ;
-            }
-
             //流程 握手->登录->KeepAlive
-            Console.WriteLine($"{args[0]},{args[1]}");
-
+            
             //初始化设置
             Settings settings   = new Settings();
-            settings.userName   = args[0];
-            settings.passWord   = args[1];
-            settings.hostName   = "LENNOVE";
-            Random random = new Random();
-            random.NextBytes(settings.macAddress);  // mac地址随机生成
-
-            Debug.Assert(settings.check());
-
+            string   basePath = AppDomain.CurrentDomain.BaseDirectory;
+            settings.loadFromJsonFile($"{basePath}/options.json");
+            settings.Init();
+            //检测参数个数
+            if(args.Length >= 2)
+            {
+                settings.userName   = args[0];
+                settings.passWord   = args[1];
+            }
+            settings.show();
+            
             //初始化socket(UDP报文形式的SOCKET)
             Socket      socket     = new Socket(AddressFamily.InterNetwork,SocketType.Dgram,ProtocolType.Udp); 
             IPAddress   bindIP     = IPAddress.Parse("0.0.0.0");
@@ -831,13 +848,12 @@ namespace DrComDotnet
             Console.WriteLine("========= Begin HandShake =========");
             Handshaker handshaker        = new Handshaker(socket,settings);
             var (salt,handShakeClinetIP) = handshaker.handShake();
-            settings.handShakeIP         = handShakeClinetIP;
-            settings.salt                = salt;
-
+            if(settings.useDHCP)
+                settings.userIP          = handShakeClinetIP;
 
             //登录
             Console.WriteLine("========= Begin Login =========");
-            Logger logger = new Logger(socket,settings);
+            Logger logger = new Logger(socket, settings, salt);
             byte[] tail16  = logger.login();
 
             // 清空socket empty_socket_buffer
