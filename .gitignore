@@ -1,4 +1,8 @@
 .vscode
 bin/
 obj/
+frameworkVer/bin/
+frameworkVer/obj/
+coreVer/bin/
+coreVer/obj/
 private/

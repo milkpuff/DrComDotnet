@@ -827,7 +827,7 @@ CLR         = {Environment.Version}
         static void Main(string[] args)
         {
             //流程 握手->登录->KeepAlive
-            
+            Console.WriteLine("Drcom .NET v0.2.0 \"Isshiki\" ");
             //初始化设置
             Settings settings   = new Settings();
             string   basePath = AppDomain.CurrentDomain.BaseDirectory;
