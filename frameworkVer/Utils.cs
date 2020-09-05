@@ -1,15 +1,6 @@
 using System;
-using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Text.Json;
-using System.Numerics;
-using System.Threading;
-using System.Diagnostics;
-using System.Security.Cryptography;
-
+using System.Runtime.InteropServices;
 
 namespace DrComDotnet
 {
@@ -21,7 +12,7 @@ namespace DrComDotnet
         {
             return src.Skip(begin).Take(end - begin).ToArray();
         }
-
+        
         // 将Bytes按16进制输出
         static public void printBytesHex(byte[] bytes,string name = "Hex")
         {
@@ -31,6 +22,21 @@ namespace DrComDotnet
                 Console.Write("{0,2:X2} ",i);
             }
             Console.WriteLine();
+        }
+
+        //也是醉了
+        [DllImport("msvcrt.dll")]
+        private extern static int system(string command);
+
+        public static bool connectWifi(string ssid, bool isDebug = false)
+        {
+            string cmd = $"netsh wlan connect name=\"{ssid}\"";
+            if(isDebug)
+            {
+                Console.WriteLine("执行: ",cmd);
+            }
+            int result = system(cmd);
+            return result == 0;
         }
 
         //将bytes进行连接的一个类
@@ -88,6 +94,8 @@ namespace DrComDotnet
 
     }
 
+
+
     //JSON反序列化类
     public class JsonOptionsModel
     {
@@ -125,9 +133,39 @@ namespace DrComDotnet
         }
         public class Misc 
         {
-            public bool autoConnectWifi {get; set;}
-            public string authWifi      {get; set;}
+            public bool   autoConnectWifi {get; set;}
+            public string authWifi        {get; set;}
         }
+
+        public JsonOptionsModel()
+        {
+            debug = new Debug {
+                enabled     = false,
+                bindIP      = "0.0.0.0",
+                logLevel    = 1,
+                recvTimeout = 3000,
+                sendTimeout = 3000
+            };
+            user  = new User {
+                name = "XXXXX",
+                password = "XXXXX",
+                ip = "DHCP",
+                dns = "10.10.10.10",
+                hostName = "NORMAL-1XPC3",
+                randomMac = true,
+                mac = "00-00-00-00-00-00"
+            };
+            authServer  = new AuthServer {
+                host = "auth.jlu.edu.cn",
+                ip   = "10.100.61.3",
+                port = 61440,
+                useDNS = true
+            };
+            misc  = new Misc {
+                autoConnectWifi = false,
+                authWifi = "JLU.PC"
+            };
+        }        
     }
 
 }

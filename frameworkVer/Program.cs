@@ -1,9 +1,9 @@
 ﻿/*
 DrComDotnet - JLU DrCom Clinet written in C#
 coding:   UTF-8
-csharp:   7.3 (with IndexRange)
+csharp:   7.3
 dotnet:   .Net Framework 4.8
-version:  0.2.0-netframwork
+version:  0.2.1-netframwork
 codename: 
 
 Inspired by newclinet.py(zhjc1124) and jlu-drcom-protocol(YouthLin).
@@ -44,12 +44,15 @@ namespace DrComDotnet
         private string      serverHost      = "auth.jlu.edu.cn";
 
         //debug 和 socket 设置
-        private bool     isDebug;
+        public bool      isDebug           { get; private set; }
         public  int      socketTimeoutSend { get; private set; }
         public  int      socketTimeoutRecv { get; private set; }
         public IPAddress socketBindIP      { get; private set; }
         public  int      logLevel          { get; private set; }
-        //public byte[]   salt;
+
+        //autoConnectWifi
+        public bool      autoConnectWifi   { get; private set; }
+        public string    authWifi          { get; private set; }
 
         public JsonOptionsModel loadFromJsonFile(string filePath)
         {
@@ -71,6 +74,8 @@ namespace DrComDotnet
             passWord     = optionsJson.user.password;
             primaryDNS   = IPAddress.Parse(optionsJson.user.dns);
             userHostName = optionsJson.user.hostName;
+            if(userHostName == "" || userHostName.ToLower() == "default")
+                userHostName = Environment.MachineName;
             
             //配置用户MAC
             macAddress   = new byte[6];
@@ -109,10 +114,14 @@ namespace DrComDotnet
             logLevel          = optionsJson.debug.logLevel;
             socketBindIP      = IPAddress.Parse(optionsJson.debug.bindIP);
 
+            //自动连接WIFI部分
+            autoConnectWifi  = optionsJson.misc.autoConnectWifi;
+            authWifi         = optionsJson.misc.authWifi;
+
             return optionsJson;
         }
 
-        // TODO: 
+
         public void show()
         {
             //检查
@@ -120,17 +129,19 @@ namespace DrComDotnet
             Debug.Assert(macAddress.Length == 6);
 
             //判断输出等级
-            //if(logLevel < 2)
-                //return;
+            if(logLevel < 2)
+                return;
 
             //输出信息
             Console.WriteLine($@"        
 //用户名,密码,mac
 userName   = {userName}
 passWord   = {passWord}
+macAddress = {macAddress[0]} {macAddress[1]} {macAddress[2]} {macAddress[3]} {macAddress[4]} {macAddress[5]} 
 primaryDNS = {primaryDNS}
 userIP     = {userIP}
 useDHCP    = {useDHCP}
+usrHostName= {userHostName}
 
 //认证服务器 IP,端口。只有serverIPEndPoint对外可见
 serverIP   = {serverIP}
@@ -145,10 +156,13 @@ logLevel     = {logLevel}
 socketTimeoutSend = {socketTimeoutSend}
 socketTimeoutRecv = {socketTimeoutRecv}
 
+//杂项
+autoConnectWifi = {autoConnectWifi}
+authWifi        = {authWifi}
+
 //运行环境
-CLR         = {Environment.Version}
+CLR             = {Environment.Version}
             ");
-            Utils.printBytesHex(macAddress,"macAddress");
         }
 
         public void Init()
@@ -827,7 +841,7 @@ CLR         = {Environment.Version}
         static void Main(string[] args)
         {
             //流程 握手->登录->KeepAlive
-            Console.WriteLine("Drcom .NET v0.2.0 \"Isshiki\" ");
+            
             //初始化设置
             Settings settings   = new Settings();
             string   basePath = AppDomain.CurrentDomain.BaseDirectory;
@@ -840,14 +854,25 @@ CLR         = {Environment.Version}
                 settings.passWord   = args[1];
             }
             settings.show();
+
+            // 连接WIFI
+            if(settings.autoConnectWifi)
+            {
+                Console.WriteLine($"自动连接WIFI: {settings.authWifi}");
+                bool result = Utils.connectWifi(settings.authWifi);
+                if(result == false)
+                {
+                    throw new ApplicationException("自动连接WIFI失败.");
+                }
+            }
             
             //初始化socket(UDP报文形式的SOCKET)
             Socket      socket     = new Socket(AddressFamily.InterNetwork,SocketType.Dgram,ProtocolType.Udp); 
-            IPAddress   bindIP     = IPAddress.Parse("0.0.0.0");
+            IPAddress   bindIP     = settings.isDebug ? settings.socketBindIP : IPAddress.Parse("0.0.0.0");
             IPEndPoint  bindIpPort = new IPEndPoint(bindIP, 61440);
             socket.Bind(bindIpPort);
-            socket.SendTimeout     = 3000; //三秒
-            socket.ReceiveTimeout  = 3000; //三秒
+            socket.SendTimeout     = settings.isDebug ? settings.socketTimeoutSend : 3;
+            socket.ReceiveTimeout  = settings.isDebug ? settings.socketTimeoutRecv : 3;
             
 
             //握手

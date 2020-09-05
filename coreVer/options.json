@@ -2,15 +2,16 @@
     "version": 1,
     "debug" : {
         "enabled"    : true,
-        "sendTimeout": 3000,
-        "recvTimeout": 3000,
+        "sendTimeout": 3200,
+        "recvTimeout": 3200,
         "bindIP"     : "0.0.0.0",
+        "bindPort"   : 61440,
         "logLevel"   : 2
     },
     "user"  : {
         "name"     : "XXXXXX",
         "password" : "XXXXXX",
-        "hostName" : "LENOV-ABCD",
+        "hostName" : "Default",
         "mac"      : "00-11-22-33-44-55",
         "ip"       : "DHCP",
         "dns"      : "10.10.10.10",
@@ -23,7 +24,7 @@
         "useDNS": true
     },
     "misc" : {
-        "autoConnectWifi": false,
+        "autoConnectWifi": true,
         "authWifi"       : "JLU.PC"
     }
 }

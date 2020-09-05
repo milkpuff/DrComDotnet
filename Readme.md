@@ -43,23 +43,24 @@ AGPL 3.0
 
 ## option.json设计格式
 
-目前只有部分功能可用(注释中没有 x 的)
+有❌的项目表示目前不可用
 
 ```JSONC
 {
    "version": 1,                //配置文件版本,也许将来会升级?
    "debug" : {                  //调试选项
-       "enabled"    : true,       //是否启用 x
+       "enabled"    : true,       //是否启用
        "sendTimeout": 3000,       //socket发送超时时长
        "recvTimeout": 3000,       //socket接收超时时长
-       "bindIP"   : "0.0.0.0",    //socket绑定地址
-       "logLevel"   : 2           //输出信息 0:静默 1:正常 2:详细 x
+       "bindIP"     : "0.0.0.0",    //socket绑定地址
+       "bindPort"   : 61440         //socket绑定端口 ❌
+       "logLevel"   : 2           //输出信息 0:静默 1:正常 2:详细 ❌
    },
    "user"  : {                  //用户信息
        "name"     : "XXXXXX",     //校园网登录 用户名,可能会被命令行参数覆盖
        "password" : "XXXXXX",     //校园网登录 密码  ,可能会被命令行参数覆盖
-       "mac"      : "00-11-22-33-44-55-66-77",  //网卡地址,填"random"表示使用随机地址
-       "hostName" : "LENOV-ABCD", //用户主机名称,长度小于32
+       "mac"      : "00-11-22-33-44-55",  //网卡地址,填"random"表示使用随机地址
+       "hostName" : "LENOV-ABCD", //用户主机名称,长度小于32.填Default表示使用本机主机名
        "ip"       : "DHCP",       //用户IP地址,不填或填DHCP表示使用握手返回的IP地址
        "dns"      : "10.10.10.10",//用户首选DNS
        "randomMac": false         //是否使用随机DNS,填true会覆盖mac项中的固定mac
@@ -71,8 +72,8 @@ AGPL 3.0
        "useDNS": true               // 是否使用DNS查询IP
    },
    "misc" : {                  // 杂项
-       "autoConnectWifi": false,  // 自动连接authWIFI x
-       "authWifi"       : "JLU.PC"// 认证WIFI名       x
+       "autoConnectWifi": false,  // 自动连接authWIFI
+       "authWifi"       : "JLU.PC"// 认证WIFI名
    }
 }
 ```
@@ -87,7 +88,7 @@ AGPL 3.0
 
 ## 路线
 
-- [ ] 自动连接WIFI
+- [x] 自动连接WIFI
 - [ ] 图形界面
 - [x] 增加JSON配置文件
 - [x] 针对 .Net Framework 4 进行编译
