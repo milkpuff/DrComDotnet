@@ -82,9 +82,11 @@ AGPL 3.0
 
 没有使用Visual Studio. 只需安装.Net SDK之后在coreVer或frameworkVer中直接运行 
 
- ```Shell 
- $ dotnet run
- ```
+```Shell 
+$ dotnet run --framework net48 -- [用户名] [密码]
+```
+
+编译: 
 
 ## 路线
 

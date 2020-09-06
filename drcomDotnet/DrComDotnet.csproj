@@ -7,8 +7,8 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="IndexRange" Version="1.0.0" />
-    <PackageReference Include="System.Text.Json" Version="4.7.2" />
+    <PackageReference Include="IndexRange"       Version="1.0.0" Condition="'$(TargetFramework)' == 'net48'"/>
+    <PackageReference Include="System.Text.Json" Version="4.7.2" Condition="'$(TargetFramework)' == 'net48'"/>
     <Content Include="./options.json">
       <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
