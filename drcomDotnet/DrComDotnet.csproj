@@ -1,15 +1,14 @@
-
-
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Authors>Leviolet</Authors>
     <OutputType>Exe</OutputType>
     <Version>0.2.0</Version>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFrameworks>netcoreapp3.1;net48</TargetFrameworks>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <!-- .NET SDK 默认包含你项目目录中的“Compile”项 -->
+    <PackageReference Include="IndexRange" Version="1.0.0" />
+    <PackageReference Include="System.Text.Json" Version="4.7.2" />
     <Content Include="./options.json">
       <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -69,7 +69,7 @@ AGPL 3.0
        "host"  : "auth.jlu.edu.cn", // 网址,会调用DNS进行查询,获得IP地址
        "ip"    : "10.100.61.3",     // IP地址,若使用网址未查到则会使用这个
        "port"  : 61440,             // 端口
-       "useDNS": true               // 是否使用DNS查询IP
+       "useDNS": true               // 是否使用DNS查询IP ❌
    },
    "misc" : {                  // 杂项
        "autoConnectWifi": false,  // 自动连接authWIFI

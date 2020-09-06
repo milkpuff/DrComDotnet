@@ -1,9 +1,9 @@
 ﻿/*
 DrComDotnet - JLU DrCom Clinet written in C#
 coding:   UTF-8
-csharp:   7.3
-dotnet:   .Net Framework 4.8
-version:  0.2.1-netframwork
+csharp:   8
+dotnet:   .NET Core 3 / .NET Framework 4.8
+version:  0.2.1
 codename: 
 
 Inspired by newclinet.py(zhjc1124) and jlu-drcom-protocol(YouthLin).
@@ -49,6 +49,7 @@ namespace DrComDotnet
         public  int      socketTimeoutRecv { get; private set; }
         public IPAddress socketBindIP      { get; private set; }
         public  int      logLevel          { get; private set; }
+        //public byte[]   salt;
 
         //autoConnectWifi
         public bool      autoConnectWifi   { get; private set; }
@@ -120,7 +121,6 @@ namespace DrComDotnet
 
             return optionsJson;
         }
-
 
         public void show()
         {
@@ -245,9 +245,8 @@ CLR             = {Environment.Version}
             Utils.printBytesHex(recv,"handshake recv");
 
             //切出salt和客户端 IP 地址
-
-            byte[] salt          = Utils.slice(recv, 4,   8);
-            byte[] clinetIPBytes = Utils.slice(recv, 20, 24);
+            byte[] salt          = recv[4..8];
+            byte[] clinetIPBytes = recv[20..24];
             IPAddress clinetIP = new IPAddress(clinetIPBytes);
 
             //输出测试
@@ -403,7 +402,7 @@ CLR             = {Environment.Version}
             // 计算xor = md5a[0..6] ^ mac
             // 由于移位运算符仅针对 int、uint、long 和 ulong 类型定义。如果左侧操作数是其他整数类型，则其值将转换为 int 类型
             // WTF.
-            byte[] tXor = Utils.slice(tMd5a, 0, 6).Zip(macAddress, (a,b) => (byte) (a ^ b)).ToArray();
+            byte[] tXor = tMd5a[0..6].Zip(macAddress, (a,b) => (byte) (a ^ b)).ToArray();
             Utils.printBytesHex(tXor,"tXor");
 
             // 计算uname 用户名左对齐末尾补 0 凑 36 长度
@@ -435,12 +434,12 @@ CLR             = {Environment.Version}
             //继续计算
             //计算md5c
             byte[] tMd5c = md5Builder.ComputeHash(
-                Utils.slice(packet.bytes,0,97)
+                packet[0..97]
                 .Concat(new byte[] {0x14, 0x00, 0x07, 0x0b}) //抄错数了,找了半天 T_T
                 .ToArray()
-            ).Take(8).ToArray();
-            Utils.printBytesHex(Utils.slice(packet.bytes,0,98)
-                .Concat(new byte[] {0x14, 0x00, 0x07, 0x0b})
+            )[0..8]; //TODO: 使用引用的方式减小内存占用 类似于 ref packet[0..98]
+            Utils.printBytesHex(packet[0..98]
+                .Concat(new byte[] {0x14, 0x00, 0x07, 0x0b}) //抄错数了,找了半天 T_T
                 .ToArray()
             ,"MD5C SRC");
 
@@ -517,9 +516,7 @@ CLR             = {Environment.Version}
             //现在是2020年八月25日凌晨0点,由于宿舍停电,未经调试,紧急保存现场
             
             //计算checksum
-            byte[] tCheckSum  = packetBuildCalculateChecksum( 
-                Utils.slice(packet.bytes,0,(316+passLen))
-                ).Take(4).ToArray();
+            byte[] tCheckSum  = packetBuildCalculateChecksum( packet.bytes[0..(316+passLen)] )[0..4];
             Utils.printBytesHex(tCheckSum);
             byte[] tBeforeCheckSum = new byte[] {
                 0x02, 0x0c, 
@@ -582,7 +579,7 @@ CLR             = {Environment.Version}
             Utils.printBytesHex(recv,"recv");
 
             //判断是否成功
-            byte[] status = Utils.slice(recv,0,6);
+            byte[] status = recv[0..6];
             if(status[0] == 0x04)
             {
                 Console.WriteLine("登录成功!");
@@ -602,7 +599,7 @@ CLR             = {Environment.Version}
                 throw new ApplicationException();
             }
             //获取tail16,即16长度的tail,用于KeepAliver
-            byte[] tail16 = Utils.slice(recv,23,39);
+            byte[] tail16 = recv[23..39];
             return tail16;
         }
 
@@ -712,7 +709,7 @@ CLR             = {Environment.Version}
             Debug.Assert(recv[0] == 0x07, "接收的包不符合预期!");
 
             //获得 keepAliveVer,用于keep40
-            byte[] keepAliveVer = Utils.slice(recv,28,29);
+            byte[] keepAliveVer = recv[28..29];
             return keepAliveVer;
         }
 
@@ -745,7 +742,7 @@ CLR             = {Environment.Version}
                 Debug.Assert(recv[0] == 0x07);
 
                 //分析接收的值
-                if(Utils.slice(recv,0,4) == new byte[] {0x07,0x00,0x28,0x00} || Utils.slice(recv,0,4) == new byte[] {0x07,serverNum,0x28,0x00})
+                if(recv[0..4] == new byte[] {0x07,0x00,0x28,0x00} || recv[0..4] == new byte[] {0x07,serverNum,0x28,0x00})
                 {
                     //正常
                     break;
@@ -777,7 +774,7 @@ CLR             = {Environment.Version}
                 Utils.printBytesHex(recv,"keep40Recv");
                 Debug.Assert(recv[0] == 0x07);
                 serverNum++;
-                tail4 = Utils.slice(recv,16,20);
+                tail4 = recv[16..20];
                 
                 // "战斗过于艰难吗? 重整旗鼓,再来一局。"
                 packet = keep40PacketBuild(serverNum, tail4 , 1);
@@ -793,7 +790,7 @@ CLR             = {Environment.Version}
                 Utils.printBytesHex(recv,"keep40Recv");
                 Debug.Assert(recv[0] == 0x07);
                 serverNum++;
-                tail4 = Utils.slice(recv,16,20);
+                tail4 = recv[16..20];
 
                 //正戏
                 for(uint8 i=serverNum; ;i += 2)
@@ -803,14 +800,14 @@ CLR             = {Environment.Version}
                     socket.SendTo(packet, settings.serverIPEndPoint);
                     socket.Receive(recv); // 获得新tail4
                     Utils.printBytesHex(recv,"keep40Recv");
-                    tail4 = Utils.slice(recv,16,20);
+                    tail4 = recv[16..20];
 
                     // keep40_2
                     packet = keep40PacketBuild(i, tail4, 3);
                     socket.SendTo(packet, settings.serverIPEndPoint);
                     socket.Receive(recv); // 获得新tail4
                     Utils.printBytesHex(recv,"keep40Recv");
-                    tail4 = Utils.slice(recv,16,20);
+                    tail4 = recv[16..20];
 
                     Thread.Sleep(20 * 1000);
                     
