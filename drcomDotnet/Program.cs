@@ -117,7 +117,7 @@ namespace DrComDotnet
             socketTimeoutSend   = optionsJson.debug.sendTimeout;
             socketTimeoutRecv   = optionsJson.debug.recvTimeout;
             logLevel            = optionsJson.debug.logLevel;
-            socketBindAddress   = IPEndPoint.Parse(optionsJson.debug.bindAddress);
+            socketBindAddress   = Utils.ParseIPEndpoint(optionsJson.debug.bindAddress);
 
             //自动连接WIFI部分
             autoConnectWifi  = optionsJson.misc.autoConnectWifi;
@@ -882,7 +882,7 @@ OS              = {Environment.OSVersion}
             
             //初始化socket(UDP报文形式的SOCKET)
             Socket      socket     = new Socket(AddressFamily.InterNetwork,SocketType.Dgram,ProtocolType.Udp); 
-            IPEndPoint  bindIpPort = settings.isDebug ? settings.socketBindAddress : IPEndPoint.Parse("0.0.0.0:61440");
+            IPEndPoint  bindIpPort = settings.isDebug ? settings.socketBindAddress : Utils.ParseIPEndpoint("0.0.0.0:61440");
             socket.Bind(bindIpPort);
             socket.SendTimeout     = settings.isDebug ? settings.socketTimeoutSend : 3;
             socket.ReceiveTimeout  = settings.isDebug ? settings.socketTimeoutRecv : 3;

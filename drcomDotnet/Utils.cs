@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Linq;
 using System.Threading;
 using System.Runtime.InteropServices;
@@ -51,6 +52,23 @@ namespace DrComDotnet
             int result = system(cmd);
             return result == 0;
         }
+
+    #if NETFRAMEWORK      
+        public static IPEndPoint ParseIPEndpoint(string endPoint)
+        {
+        
+            string[] ep = endPoint.Split(':');
+            if(ep.Length != 2) 
+                throw new FormatException("Invalid ipendpoint format");
+            IPAddress ip = IPAddress.Parse(ep[0]);
+            int port     = Convert.ToInt32(ep[1]);
+            return new IPEndPoint(ip, port);
+       
+        }
+    #else
+        public static IPEndPoint ParseIPEndpoint(string endPoint)
+            => IPEndPoint.Parse(endPoint);
+    #endif
 
         //将bytes进行连接的一个类
         public class BytesLinker

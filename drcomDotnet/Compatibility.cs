@@ -3,6 +3,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
+
 namespace System.Runtime.CompilerServices
 {
     internal static class RuntimeHelpers
@@ -42,5 +44,23 @@ namespace System.Runtime.CompilerServices
         }
     }
 }
+
+/* .NET 4中的IPEndPoint.Parse 
+namespace System.Net
+{
+    internal class IPEndPoint
+    {
+        public static IPEndPoint Parse(string endPoint)
+        {
+            string[] ep = endPoint.Split(':');
+            if(ep.Length != 2) 
+                throw new FormatException("Invalid endpoint format");
+            IPAddress ip = IPAddress.Parse(ep[0]);
+            int port     = Convert.ToInt32(ep[1]);
+            return new IPEndPoint(ip, port);
+        }
+    }
+}
+*/
 
 #endif
