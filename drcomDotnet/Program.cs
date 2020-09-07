@@ -3,7 +3,6 @@ DrComDotnet - JLU DrCom Clinet written in C#
 coding:   UTF-8
 csharp:   8
 dotnet:   .NET Core 3 / .NET Framework 4.8
-version:  0.2.1
 codename: 
 
 Inspired by newclinet.py(zhjc1124) and jlu-drcom-protocol(YouthLin).
@@ -38,22 +37,26 @@ namespace DrComDotnet
         public bool      useDHCP     { get; set; } 
 
         //认证服务器 IP,端口。只有serverIPEndPoint对外可见
-        private IPAddress   serverIP;
-        private int         serverPort;
         public  IPEndPoint  serverIPEndPoint { get; private set;}
+        private IPAddress   serverIP;
+        private bool        useDns;
+        private int         serverPort;
         private string      serverHost      = "auth.jlu.edu.cn";
 
         //debug 和 socket 设置
-        public bool      isDebug           { get; private set; }
-        public  int      socketTimeoutSend { get; private set; }
-        public  int      socketTimeoutRecv { get; private set; }
-        public IPAddress socketBindIP      { get; private set; }
-        public  int      logLevel          { get; private set; }
+        public bool       isDebug             { get; private set; }
+        public int        socketTimeoutSend   { get; private set; }
+        public int        socketTimeoutRecv   { get; private set; }
+        public IPEndPoint socketBindAddress   { get; private set; }
+        public int        logLevel            { get; private set; }
         //public byte[]   salt;
 
-        //autoConnectWifi
+        //杂项
         public bool      autoConnectWifi   { get; private set; }
         public string    authWifi          { get; private set; }
+        public int       wifiDelay         { get; private set; }
+        public bool      showWelcome       { get; private set; }
+        public string    welcomeUrl        { get; private set; }
 
         public JsonOptionsModel loadFromJsonFile(string filePath)
         {
@@ -83,7 +86,7 @@ namespace DrComDotnet
             if(optionsJson.user.randomMac ||  optionsJson.user.mac.ToLower() == "random")
             {
                 //随机mac
-                Console.WriteLine("随机mac");
+                Utils.log("Using random mac", logLevel);
                 Random random = new Random();
                 random.NextBytes(macAddress);
             }else{
@@ -107,17 +110,21 @@ namespace DrComDotnet
             serverIP        = IPAddress.Parse(optionsJson.authServer.ip);
             serverHost      = optionsJson.authServer.host;
             serverPort      = optionsJson.authServer.port;
+            useDns          = optionsJson.authServer.useDNS;
 
             // debug 部分
-            isDebug           = optionsJson.debug.enabled;
-            socketTimeoutSend = optionsJson.debug.sendTimeout;
-            socketTimeoutRecv = optionsJson.debug.recvTimeout;
-            logLevel          = optionsJson.debug.logLevel;
-            socketBindIP      = IPAddress.Parse(optionsJson.debug.bindIP);
+            isDebug             = optionsJson.debug.enabled;
+            socketTimeoutSend   = optionsJson.debug.sendTimeout;
+            socketTimeoutRecv   = optionsJson.debug.recvTimeout;
+            logLevel            = optionsJson.debug.logLevel;
+            socketBindAddress   = IPEndPoint.Parse(optionsJson.debug.bindAddress);
 
             //自动连接WIFI部分
             autoConnectWifi  = optionsJson.misc.autoConnectWifi;
             authWifi         = optionsJson.misc.authWifi;
+            wifiDelay        = optionsJson.misc.wifiDelay;
+            welcomeUrl       = optionsJson.misc.welcomeUrl;
+            showWelcome      = optionsJson.misc.showWelcome;
 
             return optionsJson;
         }
@@ -133,51 +140,58 @@ namespace DrComDotnet
                 return;
 
             //输出信息
-            Console.WriteLine($@"        
-//用户名,密码,mac
+            Utils.log($@"
+//用户名,密码,Mac地址
 userName   = {userName}
 passWord   = {passWord}
-macAddress = {macAddress[0]} {macAddress[1]} {macAddress[2]} {macAddress[3]} {macAddress[4]} {macAddress[5]} 
+macAddress = {macAddress.Select((x) => Convert.ToString(x, 16)).ToArray().Aggregate(String.Concat)}
 primaryDNS = {primaryDNS}
 userIP     = {userIP}
 useDHCP    = {useDHCP}
 usrHostName= {userHostName}
 
-//认证服务器 IP,端口。只有serverIPEndPoint对外可见
-serverIP   = {serverIP}
-serverPort = {serverPort}
-serverHost = {serverHost}
+//认证服务器 IP,端口
+serverIP          = {serverIP}
+useDns            = {useDns}
+serverPort        = {serverPort}
+serverHost        = {serverHost}
 serverIPEndPoint  = {serverIPEndPoint}
 
 //debug 和 socket 设置
-isDebug      = {isDebug}
-socketBindIP = {socketBindIP}
-logLevel     = {logLevel}
+isDebug           = {isDebug}
+socketBindAddress = {socketBindAddress}
+logLevel          = {logLevel}
 socketTimeoutSend = {socketTimeoutSend}
 socketTimeoutRecv = {socketTimeoutRecv}
 
 //杂项
-autoConnectWifi = {autoConnectWifi}
-authWifi        = {authWifi}
+autoConnectWifi   = {autoConnectWifi}
+authWifi          = {authWifi}
+wifiDelay         = {wifiDelay}
+showWelcome       = {showWelcome}
+welcomeUrl        = {welcomeUrl}
 
 //运行环境
-CLR             = {Environment.Version}
+.NET CLR        = {Environment.Version}
+OS              = {Environment.OSVersion}
             ");
         }
 
         public void Init()
         {
             // 尝试用DNS获取认证服务器IP
-            try
+            if(useDns)
             {
-                serverIP = Dns.GetHostAddresses(serverHost)[0];
+                try
+                {
+                    serverIP = Dns.GetHostAddresses(serverHost)[0];
+                }
+                catch(SocketException socketException)
+                {  
+                    Utils.log($"Can not find serverIP via DNS, using {serverIP}", logLevel+1);
+                    Utils.log(socketException.ToString(), logLevel);
+                }
             }
-            catch(SocketException socketException)
-            {  
-                Console.WriteLine($"Can not find serverIP via DNS, using {serverIP}");
-                Debug.WriteLine(socketException);
-            }
-
             //设置serverIPEndPoint
             serverIPEndPoint = new IPEndPoint(serverIP, serverPort);
         }
@@ -228,7 +242,7 @@ CLR             = {Environment.Version}
         {
             //构建握手包
             byte[] packet = packetBuild(challengeTimes);
-            Utils.printBytesHex(packet,"packet");
+            Utils.printBytesHex(packet,"packet", settings.logLevel);
 
             //发送
             socket.SendTo(
@@ -242,7 +256,7 @@ CLR             = {Environment.Version}
             //接收服务器返回消息
             byte[] recv = new byte[76];
             socket.Receive(recv);
-            Utils.printBytesHex(recv,"handshake recv");
+            Utils.printBytesHex(recv,"handshake recv", settings.logLevel);
 
             //切出salt和客户端 IP 地址
             byte[] salt          = recv[4..8];
@@ -250,8 +264,8 @@ CLR             = {Environment.Version}
             IPAddress clinetIP = new IPAddress(clinetIPBytes);
 
             //输出测试
-            Utils.printBytesHex(salt,"salt");
-            Utils.printBytesHex(clinetIPBytes,"clinetIPBytes");
+            Utils.printBytesHex(salt,"salt", settings.logLevel);
+            Utils.printBytesHex(clinetIPBytes,"clinetIPBytes", settings.logLevel);
 
             //校验随机位
             Debug.Assert(recv[2] == packet[2] && recv[3] == packet[3]);
@@ -298,7 +312,7 @@ CLR             = {Environment.Version}
                 .Concat(settings.macAddress)
                 .ToArray();
             // 1234 = 0x_00_00_04_d2
-            Utils.printBytesHex(data,"Checksum src");
+            //Utils.printBytesHex(data,"Checksum src");
             byte[] sum = new byte[]{0x00, 0x00, 0x04, 0xd2};
             int len = data.Length;
             int i = 0;
@@ -388,7 +402,7 @@ CLR             = {Environment.Version}
                     .ToArray()
             );
             this.md5a = tMd5a;
-            Utils.printBytesHex(tMd5a,"tMd5a");
+            //Utils.printBytesHex(tMd5a,"tMd5a");
             
             //计算md5b
             byte[] tMd5b = md5Builder.ComputeHash(
@@ -403,7 +417,7 @@ CLR             = {Environment.Version}
             // 由于移位运算符仅针对 int、uint、long 和 ulong 类型定义。如果左侧操作数是其他整数类型，则其值将转换为 int 类型
             // WTF.
             byte[] tXor = tMd5a[0..6].Zip(macAddress, (a,b) => (byte) (a ^ b)).ToArray();
-            Utils.printBytesHex(tXor,"tXor");
+            //Utils.printBytesHex(tXor,"tXor");
 
             // 计算uname 用户名左对齐末尾补 0 凑 36 长度
             byte[] tUname = new byte[36];  //TODO 手动填0
@@ -437,11 +451,12 @@ CLR             = {Environment.Version}
                 packet[0..97]
                 .Concat(new byte[] {0x14, 0x00, 0x07, 0x0b}) //抄错数了,找了半天 T_T
                 .ToArray()
-            )[0..8]; //TODO: 使用引用的方式减小内存占用 类似于 ref packet[0..98]
-            Utils.printBytesHex(packet[0..98]
-                .Concat(new byte[] {0x14, 0x00, 0x07, 0x0b}) //抄错数了,找了半天 T_T
-                .ToArray()
-            ,"MD5C SRC");
+            )[0..8]; //TODO: 减小内存占用
+            
+            // Utils.printBytesHex(packet[0..98]
+            //     .Concat(new byte[] {0x14, 0x00, 0x07, 0x0b}) //抄错数了,找了半天 T_T
+            //     .ToArray()
+            // ,"MD5C SRC");
 
             //对齐hostname
             byte[] tHostName = new byte[32]; //TODO: 手动补0
@@ -492,7 +507,7 @@ CLR             = {Environment.Version}
             int passLen   = (passWord.Length>16)? 16 : passWord.Length;
             byte tPassLen = (uint8) passLen;
             byte[] tRor = packetBuildCalculateRor(tMd5a,passWord);
-            Utils.printBytesHex(tRor, "tRor");
+            //Utils.printBytesHex(tRor, "tRor");
 
             //ror后的两字节 protocol 没有写明
             byte[] tAfterRor = new byte[] {0x02,0x0c};
@@ -517,14 +532,14 @@ CLR             = {Environment.Version}
             
             //计算checksum
             byte[] tCheckSum  = packetBuildCalculateChecksum( packet.bytes[0..(316+passLen)] )[0..4];
-            Utils.printBytesHex(tCheckSum);
+            //Utils.printBytesHex(tCheckSum);
             byte[] tBeforeCheckSum = new byte[] {
                 0x02, 0x0c, 
             };
             byte[] tAfterCheckSum = new byte[] {
                 0x00, 0x00
             };
-            Utils.printBytesHex(tCheckSum,"tCheckSum");
+            //Utils.printBytesHex(tCheckSum,"tCheckSum");
 
             //计算tMac
             ref byte[] tMac = ref macAddress;
@@ -562,7 +577,7 @@ CLR             = {Environment.Version}
         {
             //构建packet
             byte[] packet = packetBuild(salt);
-            Utils.printBytesHex(packet,"Packet");
+            Utils.printBytesHex(packet,"Packet", settings.logLevel);
 
             //进行通信
             //发送
@@ -576,25 +591,25 @@ CLR             = {Environment.Version}
             //接收
             byte[] recv = new byte[128];
             socket.Receive(recv);
-            Utils.printBytesHex(recv,"recv");
+            Utils.printBytesHex(recv,"recv", settings.logLevel);
 
             //判断是否成功
             byte[] status = recv[0..6];
             if(status[0] == 0x04)
             {
-                Console.WriteLine("登录成功!");
+                Utils.log("登录成功!", settings.logLevel+1);
             }
             else if(status[0] == 0x05)
             {
-                Console.WriteLine($"登录失败!");
-                Utils.printBytesHex(status, "错误信息");
+                Utils.log($"登录失败!账号密码或MAC地址错误!", settings.logLevel+1);
+                Utils.printBytesHex(status, "错误信息", settings.logLevel+1);
                 //TODO: 判断具体错误
                 throw new ApplicationException();
             }
             else
             {
-                Console.WriteLine("登录失败!未知错误");
-                Utils.printBytesHex(status, "错误信息");
+                Utils.log("登录失败!未知错误", settings.logLevel+1);
+                Utils.printBytesHex(status, "错误信息", settings.logLevel+1);
                 //TODO: 判断具体错误
                 throw new ApplicationException();
             }
@@ -644,7 +659,7 @@ CLR             = {Environment.Version}
             }
             else
             {
-                Console.WriteLine($"在构建keep40包的过程中遇到了未知的类型: {typeNum}");
+                Utils.log($"在构建keep40包的过程中遇到了未知的类型: {typeNum}", settings.logLevel+1);
             }
 
             // 连接包
@@ -660,7 +675,7 @@ CLR             = {Environment.Version}
             packet.AddBytes(tData);
 
             //检查
-            Utils.printBytesHex(packet.bytes, "keep40 Packet");
+            Utils.printBytesHex(packet.bytes, "keep40 Packet", settings.logLevel);
             Debug.Assert(packet.offset == 40, $"包长度不符合预期! 预期: 40 实际: {packet.offset}");
 
             return packet.bytes;
@@ -698,12 +713,12 @@ CLR             = {Environment.Version}
                 SocketFlags.None,
                 settings.serverIPEndPoint
             );
-            Utils.printBytesHex(packet.bytes, "keep38 send");
+            Utils.printBytesHex(packet.bytes, "keep38 send", settings.logLevel);
 
             //接收
             byte[] recv = new byte[64];
             socket.Receive(recv);
-            Utils.printBytesHex(recv, "keep38 recv");
+            Utils.printBytesHex(recv, "keep38 recv", settings.logLevel);
 
             //检查
             Debug.Assert(recv[0] == 0x07, "接收的包不符合预期!");
@@ -738,7 +753,7 @@ CLR             = {Environment.Version}
                 );
                 //接收
                 socket.Receive(recv);
-                Utils.printBytesHex(recv,"keep40Recv");
+                Utils.printBytesHex(recv,"keep40Recv", settings.logLevel);
                 Debug.Assert(recv[0] == 0x07);
 
                 //分析接收的值
@@ -771,7 +786,7 @@ CLR             = {Environment.Version}
                 );
                 //接收,判断,增加serverNum计数器,获取新tail4
                 socket.Receive(recv);
-                Utils.printBytesHex(recv,"keep40Recv");
+                Utils.printBytesHex(recv,"keep40Recv", settings.logLevel);
                 Debug.Assert(recv[0] == 0x07);
                 serverNum++;
                 tail4 = recv[16..20];
@@ -787,7 +802,7 @@ CLR             = {Environment.Version}
                 );
                 //接收,判断,增加serverNum计数器,获取新tail4
                 socket.Receive(recv);
-                Utils.printBytesHex(recv,"keep40Recv");
+                Utils.printBytesHex(recv,"keep40Recv", settings.logLevel);
                 Debug.Assert(recv[0] == 0x07);
                 serverNum++;
                 tail4 = recv[16..20];
@@ -799,14 +814,14 @@ CLR             = {Environment.Version}
                     packet = keep40PacketBuild(i, tail4, 1);
                     socket.SendTo(packet, settings.serverIPEndPoint);
                     socket.Receive(recv); // 获得新tail4
-                    Utils.printBytesHex(recv,"keep40Recv");
+                    Utils.printBytesHex(recv,"keep40Recv", settings.logLevel);
                     tail4 = recv[16..20];
 
                     // keep40_2
                     packet = keep40PacketBuild(i, tail4, 3);
                     socket.SendTo(packet, settings.serverIPEndPoint);
                     socket.Receive(recv); // 获得新tail4
-                    Utils.printBytesHex(recv,"keep40Recv");
+                    Utils.printBytesHex(recv,"keep40Recv", settings.logLevel);
                     tail4 = recv[16..20];
 
                     Thread.Sleep(20 * 1000);
@@ -844,6 +859,7 @@ CLR             = {Environment.Version}
             string   basePath = AppDomain.CurrentDomain.BaseDirectory;
             settings.loadFromJsonFile($"{basePath}/options.json");
             settings.Init();
+
             //检测参数个数
             if(args.Length >= 2)
             {
@@ -855,32 +871,32 @@ CLR             = {Environment.Version}
             // 连接WIFI
             if(settings.autoConnectWifi)
             {
-                Console.WriteLine($"自动连接WIFI: {settings.authWifi}");
+                Utils.log($"connecting to WIFI: {settings.authWifi}", settings.logLevel+1);
                 bool result = Utils.connectWifi(settings.authWifi);
                 if(result == false)
                 {
-                    throw new ApplicationException("自动连接WIFI失败.");
+                    throw new ApplicationException("Failed to connect WIFI.");
                 }
+                Thread.Sleep(settings.wifiDelay);
             }
             
             //初始化socket(UDP报文形式的SOCKET)
             Socket      socket     = new Socket(AddressFamily.InterNetwork,SocketType.Dgram,ProtocolType.Udp); 
-            IPAddress   bindIP     = settings.isDebug ? settings.socketBindIP : IPAddress.Parse("0.0.0.0");
-            IPEndPoint  bindIpPort = new IPEndPoint(bindIP, 61440);
+            IPEndPoint  bindIpPort = settings.isDebug ? settings.socketBindAddress : IPEndPoint.Parse("0.0.0.0:61440");
             socket.Bind(bindIpPort);
             socket.SendTimeout     = settings.isDebug ? settings.socketTimeoutSend : 3;
             socket.ReceiveTimeout  = settings.isDebug ? settings.socketTimeoutRecv : 3;
             
 
             //握手
-            Console.WriteLine("========= Begin HandShake =========");
+            Utils.log("Begin HandShake.", settings.logLevel+1);
             Handshaker handshaker        = new Handshaker(socket,settings);
             var (salt,handShakeClinetIP) = handshaker.handShake();
             if(settings.useDHCP)
                 settings.userIP          = handShakeClinetIP;
 
             //登录
-            Console.WriteLine("========= Begin Login =========");
+            Utils.log("Begin Login.", settings.logLevel+1);
             Logger logger = new Logger(socket, settings, salt);
             byte[] tail16  = logger.login();
 
@@ -895,11 +911,15 @@ CLR             = {Environment.Version}
             }
             catch(SocketException)
             {
-                Console.WriteLine("已清空socket");
+                Utils.log("Socket cleared.", settings.logLevel);
             }
 
+            // 打开欢迎窗口
+            if(settings.showWelcome)
+                Utils.system($"start {settings.welcomeUrl}");
+
             //保持在线
-            Console.WriteLine("========= Begin KeepAlive =========");
+            Utils.log("Keeping Connection ...", settings.logLevel+1);
             KeepAliver keepAliver = new KeepAliver(socket, settings, logger.md5a, tail16);
             keepAliver.keepAlive(); //无限循环
 

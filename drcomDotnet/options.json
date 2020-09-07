@@ -4,9 +4,8 @@
         "enabled"    : true,
         "sendTimeout": 3200,
         "recvTimeout": 3200,
-        "bindIP"     : "0.0.0.0",
-        "bindPort"   : 61440,
-        "logLevel"   : 2
+        "bindAddress": "0.0.0.0:61440",
+        "logLevel"   : 1
     },
     "user"  : {
         "name"     : "XXXXXX",
@@ -25,6 +24,9 @@
     },
     "misc" : {
         "autoConnectWifi": true,
-        "authWifi"       : "JLU.PC"
+        "wifiDelay"      : 5000, 
+        "authWifi"       : "JLU.PC",
+        "showWelcome"    : true,
+        "welcomeUrl"     : "http://login.jlu.edu.cn/notice.php"
     }
 }

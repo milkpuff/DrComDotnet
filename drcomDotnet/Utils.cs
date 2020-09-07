@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Threading;
 using System.Runtime.InteropServices;
 
 
@@ -9,8 +11,11 @@ namespace DrComDotnet
     {
         
         // 将Bytes按16进制输出
-        static public void printBytesHex(byte[] bytes,string name = "Hex")
+        static public void printBytesHex(byte[] bytes,string name = "Hex", int logLevel = 2)
         {
+            if(logLevel < 2)
+                return ;
+    
             Console.Write("[{0} {1,2:D}] ",name,bytes.Length);
             foreach(byte i in bytes)
             {
@@ -18,10 +23,23 @@ namespace DrComDotnet
             }
             Console.WriteLine();
         }
+        
+        // 传参时, logLevel+1 表示更倾向输出,-1表示更不倾向输出
+        static public void log(string info, int logLevel = 2)
+        {
+            if(logLevel >= 2)
+                Console.WriteLine(info);
+        }
+
+        static public string bytes2Hex(byte[] bytes)
+        {
+            // TODO
+            return "";   
+        }
 
         //也是醉了
         [DllImport("msvcrt.dll")]
-        private extern static int system(string command);
+        public extern static int system(string command);
 
         public static bool connectWifi(string ssid, bool isDebug = false)
         {
@@ -112,8 +130,10 @@ namespace DrComDotnet
             public bool   enabled     {get; set;}
             public int    sendTimeout {get; set;}
             public int    recvTimeout {get; set;}
-            public string bindIP      {get; set;}
+            public string bindAddress {get; set;}
             public int    logLevel    {get; set;}
+            public int    wifiDelay   {get; set;}
+
         }
         public class User
         {
@@ -135,17 +155,21 @@ namespace DrComDotnet
         public class Misc 
         {
             public bool   autoConnectWifi {get; set;}
+            public int    wifiDelay       {get; set;}
             public string authWifi        {get; set;}
+            public bool   showWelcome     {get; set;}
+            public string welcomeUrl      {get; set;}
         }
 
         public JsonOptionsModel()
         {
             debug = new Debug {
                 enabled     = false,
-                bindIP      = "0.0.0.0",
+                bindAddress = "0.0.0.0:61440",
                 logLevel    = 1,
                 recvTimeout = 3000,
-                sendTimeout = 3000
+                sendTimeout = 3000,
+                wifiDelay   = 3000
             };
             user  = new User {
                 name = "XXXXX",
@@ -164,7 +188,10 @@ namespace DrComDotnet
             };
             misc  = new Misc {
                 autoConnectWifi = false,
-                authWifi = "JLU.PC"
+                wifiDelay       = 5000,
+                authWifi        = "JLU.PC",
+                showWelcome     = false,
+                welcomeUrl      = "http://login.jlu.edu.cn/notice.php"
             };
         }        
     }
