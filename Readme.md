@@ -86,8 +86,6 @@ AGPL 3.0
 $ dotnet run --framework net48 -- [用户名] [密码]
 ```
 
-编译: 
-
 ## 路线
 
 - [x] 自动连接WIFI
