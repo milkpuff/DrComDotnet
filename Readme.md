@@ -44,8 +44,6 @@ AGPL 3.0
 
 ## option.json设计格式
 
-带有❌的项目表示目前无效
-
 ```JSONC
 {
    "version": 1,                //配置文件版本,也许将来会升级?
@@ -110,8 +108,8 @@ v1.0 "TariTari" 路线图:
 
 ### 相关项目
 
-yang-er学长的(jlu-drcom-csharp)[https://github.com/yang-er/jlu-drcom-csharp]  
+yang-er 学长的 [jlu-drcom-csharp](https://github.com/yang-er/jlu-drcom-csharp)  
 同样使用C#开发,图形界面,功能丰富,学长认证,你值得拥有  
 
 本项目的意义?  
-其实本来想用C语言写,结果太麻烦了,又懒得学Java,就用的C#。一开始写的时候还不知道已经有同类型项目了,写了几个星期才搞出来。总不能让几个星期努力打水漂吧,就继续维护一段时间。还非常厚脸皮的给了[jlu-drcom-client](https://github.com/drcoms/jlu-drcom-client)项目提了几个Pull Request,被打了几次脸,也出了不少乌龙(人家是第一次用Github协作功能啊,求原谅)。后来才发现有学长写了(jlu-drcom-csharp)[https://github.com/yang-er/jlu-drcom-csharp] (没提交成jlu-drcom-client子模块所以没看见), 自己还占了人家名字, 于是又交了个Pull Request改了回来。(给学长们添麻烦了,对不起)。所以吧,我就不会像jlu-drcom-csharp那样搞图形界面了,把命令行和配置文件写好就行,再加点实用小功能作为特色。
+其实本来想用C语言写,结果太麻烦了,又懒得学Java,就用的C#。一开始写的时候还不知道已经有同类型项目了,写了几个星期才搞出来。总不能让几个星期努力打水漂吧,就继续维护一段时间。还非常厚脸皮的给了[jlu-drcom-client](https://github.com/drcoms/jlu-drcom-client)项目提了几个Pull Request,被打了几次脸,也出了不少乌龙(人家是第一次用Github协作功能啊,求原谅)。后来才发现有学长写了 [jlu-drcom-csharp](https://github.com/yang-er/jlu-drcom-csharp) (没提交成jlu-drcom-client子模块所以没看见), 自己还占了人家名字, 于是又交了个Pull Request改了回来。(给学长们添麻烦了,对不起)。所以吧,我就不会像jlu-drcom-csharp那样搞图形界面了,把命令行和配置文件写好就行,再加点实用小功能作为特色。
