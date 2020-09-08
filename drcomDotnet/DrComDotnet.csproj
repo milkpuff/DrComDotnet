@@ -5,13 +5,20 @@
     <Version>0.3.0</Version>
     <TargetFrameworks>netcoreapp3.1;net48</TargetFrameworks>
     <LangVersion>latest</LangVersion>
+    <ApplicationIcon>../private/icon.ico</ApplicationIcon>
   </PropertyGroup>
+  
+  <!-- 兼容NET 4.8 -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PackageReference Include="IndexRange"       Version="1.0.0"/>
+    <PackageReference Include="System.Text.Json" Version="4.7.2"/>
+  </ItemGroup>
+    
   <ItemGroup>
-    <PackageReference Include="IndexRange"       Version="1.0.0" Condition="'$(TargetFramework)' == 'net48'"/>
-    <PackageReference Include="System.Text.Json" Version="4.7.2" Condition="'$(TargetFramework)' == 'net48'"/>
     <Content Include="./options.json">
       <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  
 </Project>

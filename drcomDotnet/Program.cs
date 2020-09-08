@@ -49,7 +49,6 @@ namespace DrComDotnet
         public int        socketTimeoutRecv   { get; private set; }
         public IPEndPoint socketBindAddress   { get; private set; }
         public int        logLevel            { get; private set; }
-        //public byte[]   salt;
 
         //杂项
         public bool      autoConnectWifi   { get; private set; }

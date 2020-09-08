@@ -53,6 +53,7 @@ namespace DrComDotnet
             return result == 0;
         }
 
+    // 匹配地址,NET48需要现写
     #if NETFRAMEWORK      
         public static IPEndPoint ParseIPEndpoint(string endPoint)
         {
@@ -84,7 +85,6 @@ namespace DrComDotnet
                 this.bytesLength = bytesLength;
                 offset           = 0;
             }
-
             public void AddBytes(byte[] src)
             {
                 //判断是否溢出
@@ -97,7 +97,6 @@ namespace DrComDotnet
                 src.CopyTo(bytes, offset);
                 offset += src.Length;
             }
-
             //连接并检验offset
             public void AddBytes(byte[] src, int assertOffset)
             {
@@ -108,7 +107,6 @@ namespace DrComDotnet
                     throw new ApplicationException();
                 }
             }
-
             //添加一个byte
             public void AddByte(byte src)
             {
@@ -122,7 +120,7 @@ namespace DrComDotnet
                 offset++;
             }
             
-            //重载切片，用于练习
+            //重载切片
             public byte[] this[Range r]
             {
                 get { return bytes[r]; }
