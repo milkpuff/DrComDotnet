@@ -1,17 +1,6 @@
-.vscode
-bin/
-obj/
-frameworkVer/bin/
-frameworkVer/obj/
-frameworkVer/.vscode/
-coreVer/bin/
-coreVer/obj/
-coreVer/.vscode/
-configer/obj/
-configer/bin/
-configer/.vscode/
-*/obj/
-*/bin/
-*/.vscode/
+.vscode/
+*/**/obj/
+*/**/bin/
+*/**/.vscode/
 
 private/

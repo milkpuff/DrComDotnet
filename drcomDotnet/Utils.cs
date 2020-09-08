@@ -37,13 +37,16 @@ namespace DrComDotnet
             // TODO
             return "";   
         }
-
-        //也是醉了
+    
+    //也是醉了
+    #if IS_WINDOWS
         [DllImport("msvcrt.dll")]
         public extern static int system(string command);
 
         public static bool connectWifi(string ssid, bool isDebug = false)
         {
+            if(System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
+                return true;
             string cmd = $"netsh wlan connect name=\"{ssid}\"";
             if(isDebug)
             {
@@ -52,6 +55,12 @@ namespace DrComDotnet
             int result = system(cmd);
             return result == 0;
         }
+    #else
+        public static bool connectWifi(string ssid, bool isDebug = false)
+            => false;
+        public static int  system(string command)
+            => false;
+    #endif
 
     // 匹配地址,NET48需要现写
     #if NETFRAMEWORK      

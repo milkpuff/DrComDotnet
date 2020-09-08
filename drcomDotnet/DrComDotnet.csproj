@@ -1,11 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <Authors>Leviolet</Authors>
     <OutputType>Exe</OutputType>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <TargetFrameworks>netcoreapp3.1;net48</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <ApplicationIcon>../private/icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- 定义是否为WIndows系统 -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <DefineConstants>IS_WINDOWS</DefineConstants>
   </PropertyGroup>
   
   <!-- 兼容NET 4.8 -->
