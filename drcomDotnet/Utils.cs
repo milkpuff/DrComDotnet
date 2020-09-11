@@ -1,7 +1,5 @@
 using System;
 using System.Net;
-using System.Linq;
-using System.Threading;
 using System.Runtime.InteropServices;
 
 
@@ -45,8 +43,6 @@ namespace DrComDotnet
 
         public static bool connectWifi(string ssid, bool isDebug = false)
         {
-            if(System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
-                return true;
             string cmd = $"netsh wlan connect name=\"{ssid}\"";
             if(isDebug)
             {
@@ -57,9 +53,13 @@ namespace DrComDotnet
         }
     #else
         public static bool connectWifi(string ssid, bool isDebug = false)
-            => false;
+        {
+            throw new ApplicationException("Only for Windows!");
+        }
         public static int  system(string command)
-            => false;
+        {
+            throw new ApplicationException("Only for Windows!");
+        }
     #endif
 
     // 匹配地址,NET48需要现写

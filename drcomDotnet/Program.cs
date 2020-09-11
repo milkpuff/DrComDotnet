@@ -13,6 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.Json;
 using System.Numerics;
@@ -868,9 +869,9 @@ OS              = {Environment.OSVersion}
             settings.show();
 
             // 连接WIFI
-            if(settings.autoConnectWifi)
+            if(settings.autoConnectWifi && !NetworkInterface.GetIsNetworkAvailable())
             {
-                Utils.log($"connecting to WIFI: {settings.authWifi}", settings.logLevel+1);
+                Utils.log($"Connecting to WIFI: {settings.authWifi}", settings.logLevel+1);
                 bool result = Utils.connectWifi(settings.authWifi);
                 if(result == false)
                 {

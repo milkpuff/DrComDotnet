@@ -162,6 +162,58 @@ v1.0 "TariTari" 路线图:
 - [x] JSON配置文件
 - [x] 针对 .NET 4 进行编译
 
+### 源码结构简介
+
+#### 基本流程
+
+在Main函数中体现
+
+| 类型   | 简介                                       |
+| ------ | ------------------------------------------ |
+| 初始化 | 加载JSON文件, 生成Settings类, 初始化Socket |
+| 认证   | 握手,登录,保持连接                         |
+| 杂项   | 连接WIFI,打开登录窗口                      |
+
+#### 初始化
+
+(伪代码)
+
+```CSharp
+//加载settings,存放json里面的设置
+Settings settings = new Settings();
+settings.loadFromJsonFile(...);
+settings.Init();
+
+//初始化socket
+Socket socket     = new Socket(...);
+socket.Bind(...);
+```
+
+#### 认证
+
+(伪代码)
+
+```CSharp
+//握手
+Handshaker handshaker = new Handshaker(...);
+handshaker.handShake();  //返回salt
+//登录
+Logger logger         = new Logger    (...,salt);
+logger.login();          //返回tail16
+//保持连接
+KeepAliver keepAliver = new KeepAliver(...,md5a,tail16);
+keepAliver.keepAlive();  //这里会无限循环
+```
+
+#### Handshaker, Logger, KeepAliver类
+
+主要是 handShake, login, keepAlive函数  
+具体过程为:
+
+    准备包需要的参数 -> 连接包 -> 发送包 -> 接收回复 -> 提取需要的参数 -> 返回参数
+
+如果构建包比较复杂,会把 "准备包需要的参数 -> 连接包" 这两个步骤单独写一个函数: packetBuild.
+
 ## 引用与许可
 
 ### 引用项目
