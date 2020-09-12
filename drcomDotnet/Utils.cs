@@ -29,12 +29,6 @@ namespace DrComDotnet
             if(logLevel >= 2)
                 Console.WriteLine(info);
         }
-
-        static public string bytes2Hex(byte[] bytes)
-        {
-            // TODO
-            return "";   
-        }
     
     //也是醉了
     #if IS_WINDOWS
@@ -54,11 +48,14 @@ namespace DrComDotnet
     #else
         public static bool connectWifi(string ssid, bool isDebug = false)
         {
-            throw new ApplicationException("Only for Windows!");
+            if(isDebug)
+                throw new ApplicationException("Only for Windows!");
+            log("Connet Wifi only available for Windows");
+            return false;
         }
-        public static int  system(string command)
+        public static int system(string command)
         {
-            throw new ApplicationException("Only for Windows!");
+            throw new ApplicationException("msvcrt.dll only available for Windows");
         }
     #endif
 
