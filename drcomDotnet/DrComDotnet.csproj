@@ -6,20 +6,32 @@
     <Version>0.3.1</Version>
     <TargetFrameworks>netcoreapp3.1;net48</TargetFrameworks>
     <LangVersion>latest</LangVersion>
-    <ApplicationIcon>../private/icon.ico</ApplicationIcon>
   </PropertyGroup>
 
-  <!-- 定义是否为WIndows系统 -->
+  <!-- Windows 系统 -->
   <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <ApplicationIcon>../private/icon.ico</ApplicationIcon>
     <DefineConstants>IS_WINDOWS</DefineConstants>
   </PropertyGroup>
   
-  <!-- 兼容NET 4.8 -->
+  <!-- MAC OS X 系统 -->
+  <PropertyGroup Condition="'$(OS)' == 'OSX'">
+    <DefineConstants>IS_OSX</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Linux 系统 -->
+  <PropertyGroup Condition="'$(OS)' == 'Linux'">
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <DefineConstants>IS_LINUX</DefineConstants>
+  </PropertyGroup>
+
+  <!-- .NET 4.8 -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <PackageReference Include="IndexRange"       Version="1.0.0"/>
     <PackageReference Include="System.Text.Json" Version="4.7.2"/>
   </ItemGroup>
-    
+
+  <!-- Public -->
   <ItemGroup>
     <Content Include="./options.json">
       <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
