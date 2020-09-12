@@ -452,11 +452,6 @@ OS              = {Environment.OSVersion}
                 .Concat(new byte[] {0x14, 0x00, 0x07, 0x0b}) //抄错数了,找了半天 T_T
                 .ToArray()
             )[0..8]; //TODO: 减小内存占用
-            
-            // Utils.printBytesHex(packet[0..98]
-            //     .Concat(new byte[] {0x14, 0x00, 0x07, 0x0b}) //抄错数了,找了半天 T_T
-            //     .ToArray()
-            // ,"MD5C SRC");
 
             //对齐hostname
             byte[] tHostName = new byte[32]; //TODO: 手动补0
@@ -478,11 +473,11 @@ OS              = {Environment.OSVersion}
                 0x44, 0x72, 0x43, 0x4f, 0x4d, 0x00, 0xcf, 0x07, 0x68
             };
             // protocol版本
-            //byte[] tDrComCheck = new byte[] { 
+            // byte[] tDrComCheck = new byte[] { 
             //    0x44, 0x72, 0x43, 0x4f, 0x4d, 0x00, 0xcf, 0x07, 0x6a
-            //};
+            // };
 
-            //固定长度的零字节,tFixed对应协议分析中的 zero[24] 和 6a 00 00
+            // 固定长度的零字节,tFixed对应协议分析中的 zero[24] 和 6a 00 00
             byte[] tZero55 = new byte[55];
             byte[] tFixed  = new byte[27] {
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -490,15 +485,15 @@ OS              = {Environment.OSVersion}
                 0x00, 0x00, 0x00, 0x00, 0x68, 0x00, 0x00
             };
             // protocol 版
-            //byte[] tFixed  = new byte[27] {
+            // byte[] tFixed  = new byte[27] {
             //    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             //    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             //    0x00, 0x00, 0x00, 0x00, 0x6a, 0x00, 0x00
-            //};
+            // };
 
-            //str有很多版本,以后抓包看看
+            // str有很多版本,以后抓包看看
             // protocol 版
-            //byte[] tUnknownStr  = getBytes("1c210c99585fd22ad03d35c956911aeec1eb449b");
+            // byte[] tUnknownStr  = getBytes("1c210c99585fd22ad03d35c956911aeec1eb449b");
             // newclinet 版
             byte[] tUnknownStr = new byte[] {0x33, 0x64, 0x63, 0x37, 0x39, 0x66, 0x35, 0x32, 0x31, 0x32, 0x65, 0x38, 0x31, 0x37, 0x30, 0x61, 0x63, 0x66, 0x61, 0x39, 0x65, 0x63, 0x39, 0x35, 0x66, 0x31, 0x64, 0x37, 0x34, 0x39, 0x31, 0x36, 0x35, 0x34, 0x32, 0x62, 0x65, 0x37, 0x62, 0x31} ;
             
@@ -507,14 +502,13 @@ OS              = {Environment.OSVersion}
             int passLen   = (passWord.Length>16)? 16 : passWord.Length;
             byte tPassLen = (uint8) passLen;
             byte[] tRor = packetBuildCalculateRor(tMd5a,passWord);
-            //Utils.printBytesHex(tRor, "tRor");
 
             //ror后的两字节 protocol 没有写明
             byte[] tAfterRor = new byte[] {0x02,0x0c};
 
             //第二次拼接
             packet.AddBytes(tMd5c);
-            packet.AddBytes(new byte[]    { tIPDog, 0x00, 0x00, 0x00, 0x00 }, 110);
+            packet.AddBytes(new byte[] { tIPDog, 0x00, 0x00, 0x00, 0x00 }, 110);
             packet.AddBytes(tHostName,     142);
             packet.AddBytes(tPrimaryDNS);
             packet.AddBytes(tDHCP);
@@ -577,7 +571,7 @@ OS              = {Environment.OSVersion}
         {
             //构建packet
             byte[] packet = packetBuild(salt);
-            Utils.printBytesHex(packet,"Packet", settings.logLevel);
+            Utils.printBytesHex(packet,"Packet",        settings.logLevel );
 
             //进行通信
             //发送
@@ -591,7 +585,7 @@ OS              = {Environment.OSVersion}
             //接收
             byte[] recv = new byte[128];
             socket.Receive(recv);
-            Utils.printBytesHex(recv,"recv", settings.logLevel);
+            Utils.printBytesHex(recv,"recv",            settings.logLevel );
 
             //判断是否成功
             byte[] status = recv[0..6];
@@ -601,16 +595,16 @@ OS              = {Environment.OSVersion}
             }
             else if(status[0] == 0x05)
             {
-                Utils.log($"登录失败!账号密码或MAC地址错误!", settings.logLevel+1);
-                Utils.printBytesHex(status, "错误信息", settings.logLevel+1);
+                Utils.log($"登录失败!账号密码或MAC地址错误!", settings.logLevel+1 );
+                Utils.printBytesHex(status, "错误信息",     settings.logLevel+1 );
                 //TODO: 判断具体错误
                 throw new ApplicationException();
             }
             else
             {
                 Utils.log("登录失败!未知错误", settings.logLevel+1);
-                Utils.printBytesHex(status, "错误信息", settings.logLevel+1);
-                //TODO: 判断具体错误
+                Utils.printBytesHex(status, "错误信息",     settings.logLevel+1 );
+                //TODO: 判断具体错
                 throw new ApplicationException();
             }
             //获取tail16,即16长度的tail,用于KeepAliver
@@ -733,11 +727,10 @@ OS              = {Environment.OSVersion}
             //UInt16 rand =(UInt16) random.Next(0x000B,0xFFFF);
             uint8  serverNum = 0;
             
-
             // 构建第一次用的包
-            byte[] packet = new byte[40]; // 共用发送变量
+            byte[] packet = new byte[40 ]; // 共用发送变量
             byte[] recv   = new byte[512]; // 共用接收变量
-            byte[] tail4   = new byte[4 ]; // 共用接收变量
+            byte[] tail4  = new byte[4  ]; // 共用接收变量
 
             //循环直到返回期望的值
             packet = keep40PacketBuild(serverNum, new byte[4] , 1 , isFirst: true); // 共用

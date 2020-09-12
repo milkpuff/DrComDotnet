@@ -29,12 +29,6 @@ namespace DrComDotnet
             if(logLevel >= 2)
                 Console.WriteLine(info);
         }
-
-        static public string bytes2Hex(byte[] bytes)
-        {
-            // TODO
-            return "";   
-        }
     
     //也是醉了
     #if IS_WINDOWS
