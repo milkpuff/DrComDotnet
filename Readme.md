@@ -40,14 +40,9 @@
 
 #### 步骤
 
-1. 下载安装 [nssm](https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip) 并以管理员身份运行(服务名可以自己设置)
-
-```Shell
-nssm install DrcomService
-```
-
-2. 在弹出的窗口中设置 Path 为 DrComDotnet.exe 的路径,服务名随便起一个(如 DrcomService )
-3. 在 "开始菜单" -> "服务" 中找到并双击DrcomService. 设置启动类型为 "自动(延迟启动)", 在 "恢复" 选项卡中设置 "第一次失败" 和 "第二次失败" 为 "重新启动服务"
+1. 下载安装 [nssm](https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip) 并将 nssm.exe 文件解压到程序路径.
+2. 右键以管理员身份运行 installService.cmd
+3. 可以运行 uninstallService.cmd 来卸载服务
 
 ### 配置文件
 
@@ -81,7 +76,7 @@ nssm install DrcomService
    },
    "misc" : {                  // 杂项
         "autoConnectWifi": false,   // (常用)自动连接认证Wifi     (仅Windows)
-        "wifiDelay"      : 5000,   // 自动连接WIFI后的延迟时间.(太短了会在WIFI连通之前发送消息导致连接失败)
+        "wifiDelay"      : 5000,   // 自动连接WIFI后的延迟时间.
         "authWifi"       : "JLU.PC",// 认证WIFI名
         "showWelcome"    : true,    // (常用)在登录后访问欢迎页面 (仅Windows,无法在服务状态下使用)
         "welcomeUrl"     : "http://login.jlu.edu.cn/notice.php" // 欢迎页面地址
@@ -153,7 +148,7 @@ v1.0 "TariTari" 路线图:
 
 - [ ] 打磨文档
 - [ ] 简单的图形界面配置
-- [ ] 提供安装服务的脚本
+- [x] 提供安装服务的脚本
 - [x] 其他系统测试
 - [x] ~~断线重连(可通过服务实现)~~
 - [x] 静默模式
