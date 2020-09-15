@@ -8,18 +8,18 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
-  <!-- Windows 系统 -->
+  <!-- Windows  -->
   <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
     <ApplicationIcon>../private/icon.ico</ApplicationIcon>
     <DefineConstants>IS_WINDOWS</DefineConstants>
   </PropertyGroup>
   
-  <!-- MAC OS X 系统 -->
+  <!-- MAC OS X  -->
   <PropertyGroup Condition="'$(OS)' == 'OSX'">
     <DefineConstants>IS_OSX</DefineConstants>
   </PropertyGroup>
 
-  <!-- Linux 系统 -->
+  <!-- Linux  -->
   <PropertyGroup Condition="'$(OS)' == 'Linux'">
     <InvariantGlobalization>true</InvariantGlobalization>
     <DefineConstants>IS_LINUX</DefineConstants>

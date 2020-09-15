@@ -8,7 +8,6 @@ namespace DrComDotnet
     //小工具
     static class Utils
     {
-        
         // 将Bytes按16进制输出
         static public void printBytesHex(byte[] bytes,string name = "Hex", int logLevel = 2)
         {

@@ -91,7 +91,7 @@
 **A:** 有.请看
 
 - yang-er 学长的 [jlu-drcom-csharp](https://github.com/yang-er/jlu-drcom-csharp)
-- YouthLin 学长的 [jlu-drcom-java](https://github.com/YouthLin/jlu-drcom-java)
+- YouthLin 学长的 [jlu-drcom-java](https://github.com/drcoms/jlu-drcom-client/tree/master/jlu-drcom-java)
 
 图形界面,功能丰富,学长认证,你值得拥有!  
 这个项目是不会做图形界面的.难度比较大,也没那么宏大的目标,现在这些都是上网搜索然后复制粘贴改改做出来的
@@ -119,11 +119,7 @@
 
 **Q: 如何卸载?**  
 **A:** 删除下载的文件夹即可,不会留下任何额外的文件  
-如果你安装了服务,则需要在删除所有文件前先运行:
-
-```Shell
-nssm remove DrcomService
-```
+如果你安装了服务,则需要在删除所有文件前先运行uninstallService.cmd
 
 ## 源码相关
 
@@ -147,7 +143,7 @@ dotnet run --framework net48 -- [用户名] [密码]
 v1.0 "TariTari" 路线图:
 
 - [ ] 打磨文档
-- [ ] 简单的图形界面配置
+- [ ] ~~简单的图形界面配置~~
 - [x] 提供安装服务的脚本
 - [x] 其他系统测试
 - [x] ~~断线重连(可通过服务实现)~~

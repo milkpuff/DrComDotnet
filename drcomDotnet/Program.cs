@@ -3,7 +3,6 @@ DrComDotnet - JLU DrCom Clinet written in C#
 coding:   UTF-8
 csharp:   8
 dotnet:   .NET Core 3 / .NET Framework 4.8
-codename: 
 
 Inspired by newclinet.py(zhjc1124) and jlu-drcom-protocol(YouthLin).
 */
@@ -312,7 +311,6 @@ OS              = {Environment.OSVersion}
                 .Concat(settings.macAddress)
                 .ToArray();
             // 1234 = 0x_00_00_04_d2
-            //Utils.printBytesHex(data,"Checksum src");
             byte[] sum = new byte[]{0x00, 0x00, 0x04, 0xd2};
             int len = data.Length;
             int i = 0;
@@ -402,7 +400,6 @@ OS              = {Environment.OSVersion}
                     .ToArray()
             );
             this.md5a = tMd5a;
-            //Utils.printBytesHex(tMd5a,"tMd5a");
             
             //计算md5b
             byte[] tMd5b = md5Builder.ComputeHash(
@@ -417,7 +414,6 @@ OS              = {Environment.OSVersion}
             // 由于移位运算符仅针对 int、uint、long 和 ulong 类型定义。如果左侧操作数是其他整数类型，则其值将转换为 int 类型
             // WTF.
             byte[] tXor = tMd5a[0..6].Zip(macAddress, (a,b) => (byte) (a ^ b)).ToArray();
-            //Utils.printBytesHex(tXor,"tXor");
 
             // 计算uname 用户名左对齐末尾补 0 凑 36 长度
             byte[] tUname = new byte[36];  //TODO 手动填0
@@ -526,14 +522,12 @@ OS              = {Environment.OSVersion}
             
             //计算checksum
             byte[] tCheckSum  = packetBuildCalculateChecksum( packet.bytes[0..(316+passLen)] )[0..4];
-            //Utils.printBytesHex(tCheckSum);
             byte[] tBeforeCheckSum = new byte[] {
                 0x02, 0x0c, 
             };
             byte[] tAfterCheckSum = new byte[] {
                 0x00, 0x00
             };
-            //Utils.printBytesHex(tCheckSum,"tCheckSum");
 
             //计算tMac
             ref byte[] tMac = ref macAddress;
@@ -653,7 +647,7 @@ OS              = {Environment.OSVersion}
             }
             else
             {
-                Utils.log($"在构建keep40包的过程中遇到了未知的类型: {typeNum}", settings.logLevel+1);
+                Utils.log($"在构建keep40包的过程中遇到了未知的类型参数: {typeNum}", settings.logLevel+1);
             }
 
             // 连接包
@@ -688,8 +682,8 @@ OS              = {Environment.OSVersion}
             byte[] tTime = new byte[2] {(byte) (timeStamp & 0xFF00) ,(byte) (timeStamp & 0xFF)}; //取后16位
             
             // 连接包
-            //    格式0xff [md5a:16位] 0x00 0x00 0x00 [tail16:16位] time1 time2     //根据newclinet,是time而非rand
-            Utils.BytesLinker packet = new Utils.BytesLinker(38 + 4);             //根据newclinet,补4位0  
+            //    格式0xff [md5a:16位] 0x00 0x00 0x00 [tail16:16位] time1 time2     // 根据newclinet,是time而非rand
+            Utils.BytesLinker packet = new Utils.BytesLinker(38 + 4);              // 根据newclinet,补4位0  
             packet.AddByte (0xff);
             packet.AddBytes(md5a);
             packet.AddBytes(new byte[] {0x00, 0x00, 0x00});
@@ -697,7 +691,7 @@ OS              = {Environment.OSVersion}
             packet.AddBytes(tTime);
 
             // Protocol版本,tTime -> tRand
-            //byte[] tRandom = new byte[2] {0x00,0x00};random.NextBytes(tRandom);packet.AddBytes(tRandom);
+            // byte[] tRandom = new byte[2] {0x00,0x00};random.NextBytes(tRandom);packet.AddBytes(tRandom);
 
             //发送
             socket.SendTo(
