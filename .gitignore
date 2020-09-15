@@ -3,6 +3,5 @@
 */**/bin/
 */**/.vscode/
 
-jsonGUIConfiger/
 private/
 installService/nssm.exe
