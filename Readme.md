@@ -12,20 +12,15 @@
 
 本项目有幸~~十分厚脸皮地~~成为了 [jlu-drcom-client](https://github.com/drcoms/jlu-drcom-client) 的子模块
 
-特点:
-
-- 可以自动连接WIFI
-- 可以作为服务安装
-- 可以使用配置文件保存设置
 
 ## 使用方法
 
-### 快速使用
+### 快速使用(Windows)
 
-1. 确保你的系统是 Windows 10/8/8.1 的较新版本,它们应当预装了 .NET Framework 4  
-如果你使用的的是 Windows 7/XP 也可以尝试一下安装 .NET Framework 4
+1. 如果你的操作系统是 Windows 10/8/8.1 ,它们应当预装了 .NET Framework 4  
+如果你使用的的是 Windows 7/Vista/XP 也可以尝试一下安装 .NET Framework 4
 2. 下载[最新版本](https://github.com/leviolet/DrComDotnet/releases/latest)中含有"**NET48**"字样的文件
-3. 解压到你喜欢的地方,在options.json中进行你喜欢的设置(参照下面的配置文件格式)
+3. 解压到你喜欢的地方,在options.json中进行你喜欢的设置(参照下面的 [配置文件格式](#配置文件) )
 4. 运行DrComDotnet.exe
 
 ### 安装为服务(可选)
@@ -42,7 +37,15 @@
 
 1. 下载安装 [nssm](https://nssm.cc/ci/nssm-2.24-101-g897c7ad.zip) 并将 nssm.exe 文件解压到程序路径.
 2. 右键以管理员身份运行 installService.cmd
-3. 可以运行 uninstallService.cmd 来卸载服务
+3. 可以运行 uninstallService.cmd 来卸载服务,也可在 ```开始菜单-Windows管理工具-服务``` 中找到 ```DrcomDontnetNssm``` 将其停用
+
+### 其他操作系统
+
+在Mac OS和Linux上,安装 .NET 运行环境,执行
+
+```Shell
+dotnet DrcomDotnet.dll
+```
 
 ### 配置文件
 
@@ -135,14 +138,21 @@
 安装 .NET SDK之后在drcomDotnet文件夹中直接运行:
 
 ```Shell
-dotnet run --framework net48 -- [用户名] [密码]
+dotnet run --framework netcoreapp3.1 -- [用户名] [密码]
 ```
 
 ### 路线图
 
-v1.0 "TariTari" 路线图:
+#### 当前
 
-- [ ] 打磨文档
+**暂无**
+
+#### 已完成
+
+<details>
+<summary>v1.0 "TariTari"</summary>
+
+- [x] 打磨文档
 - [ ] ~~简单的图形界面配置~~
 - [x] 提供安装服务的脚本
 - [x] 其他系统测试
@@ -152,6 +162,9 @@ v1.0 "TariTari" 路线图:
 - [x] 自动连接WIFI
 - [x] JSON配置文件
 - [x] 针对 .NET 4 进行编译
+
+</details>
+
 
 ### 源码结构简介
 
@@ -217,4 +230,13 @@ keepAliver.keepAlive();  //这里会无限循环
 
 ### 许可
 
-This program is released under license **[GNU Affero General Public License v3.0 or later](https://www.gnu.org/licenses/agpl-3.0.txt)**
+Copyright 2020 Leviolet.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, version 3.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>
+
+
+![GNU AGPL](https://www.gnu.org/graphics/agplv3-155x51.png)

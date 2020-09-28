@@ -1,9 +1,16 @@
 ﻿/*
 DrComDotnet - JLU DrCom Clinet written in C#
+version:  1.0.0
 coding:   UTF-8
 csharp:   8
 dotnet:   .NET Core 3 / .NET Framework 4.8
+license:  AGPL-3.0-only
 
+Copyright 2020 Leviolet.
+This file is part of DrComDotnet.
+DrComDotnet is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, version 3.
+DrComDotnet is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+You should have received a copy of the GNU Affero General Public License along with DrComDotnet.  If not, see <https://www.gnu.org/licenses/>.
 Inspired by newclinet.py(zhjc1124) and jlu-drcom-protocol(YouthLin).
 */
 
