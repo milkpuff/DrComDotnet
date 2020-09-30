@@ -8,7 +8,7 @@
 **[下载](https://github.com/leviolet/DrComDotnet/releases/latest) | [使用方法](#使用方法) | [常见问题](#常见问题) |  [源码相关](#源码相关) | [引用与许可](#引用与许可)**
 
 一个用 .NET 实现的 JLU DrCom 第三方认证客户端.  
-本项目离不开 zhjc1124 的 newclinet.py 和 YouthLin 的 jlu-drcom-protocol 协议分析以及 checksum 算法
+本项目离不开 zhjc1124 的 newclinet.py 和 YouthLin 的 [jlu-drcom-protocol 协议分析](https://github.com/drcoms/jlu-drcom-client/blob/master/jlu-drcom-java/jlu-drcom-protocol.md)以及 checksum 算法
 
 本项目有幸~~十分厚脸皮地~~成为了 [jlu-drcom-client](https://github.com/drcoms/jlu-drcom-client) 的子模块
 
